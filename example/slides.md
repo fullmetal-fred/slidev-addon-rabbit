@@ -25,7 +25,7 @@ addons:
 rabbit:
   slideNum: true # Show current/total slide numbers next to a rabbit icon
   useSlideTimes: true # Enable time-based slide tracking
-  defaultSlideTime: 2 # Default time for slides without `time` attribute
+  defaultSlideTime: 2.22 # Default time for slides without `slideTime` attribute, defaults to 2 minutes
 slideTime: 1
 ---
 
@@ -55,7 +55,6 @@ The last comment block of each slide will be treated as slide notes. It will be 
 
 ---
 transition: fade-out
-slideTime: 2
 ---
 
 # What is Slidev?

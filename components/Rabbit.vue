@@ -98,7 +98,36 @@ const positionPercent = computed(() => {
       if (totalTime > 0) {
         // Position based on proportion of elapsed time to total time (as percentage)
         percentage = (cumulativeTime / totalTime) * 100;
-        console.log(`[Rabbit] Time-based position: ${percentage.toFixed(2)}%`);
+
+        // Get current slide's individual time
+        const currentSlideTime = Number(props.slideTimes[props.current - 1]);
+        const cumulativeTimeUpToCurrent = cumulativeTime - currentSlideTime;
+
+        // Enhanced logging with detailed math
+        console.log(`[Rabbit] Time-based positioning calculation:`, {
+          currentSlide: props.current,
+          totalSlides: total,
+          slideTimes: props.slideTimes,
+          slideTimesWithIndex: props.slideTimes.map((time, index) => ({
+            slideIndex: index + 1,
+            slideTime: time,
+            hasSlideTimeValue: time !== undefined && time !== null,
+            isCurrentSlide: (index + 1) === props.current
+          })),
+          currentSlideTimeMinutes: currentSlideTime,
+          cumulativeTimeUpToCurrentMinutes: cumulativeTimeUpToCurrent,
+          totalCumulativeTimeMinutes: cumulativeTime,
+          totalPresentationTimeMinutes: totalTime,
+          timeBreakdown: {
+            upToCurrent: `${cumulativeTimeUpToCurrent} minutes (slides 1-${props.current - 1})`,
+            currentSlide: `${currentSlideTime} minutes (slide ${props.current})`,
+            total: `${cumulativeTime} minutes (slides 1-${props.current})`
+          },
+          timeDeltaRatio: `${cumulativeTime}/${totalTime} = ${(cumulativeTime / totalTime).toFixed(4)}`,
+          finalPercentage: percentage.toFixed(2) + '%',
+          math: `(${cumulativeTime} / ${totalTime}) * 100 = ${percentage.toFixed(2)}%`,
+          calculation: `(${cumulativeTimeUpToCurrent} + ${currentSlideTime}) / ${totalTime} * 100 = ${percentage.toFixed(2)}%`
+        });
       }
     }
   }
@@ -106,7 +135,13 @@ const positionPercent = computed(() => {
   if (!percentage) {
     // Default: Use slide-count-based positioning (as percentage)
     percentage = ((props.current - 1) / (total - 1)) * 100;
-    console.log(`[Rabbit] Slide-count-based position: ${percentage.toFixed(2)}% (Slide ${props.current} of ${total})`);
+    console.log(`[Rabbit] Slide-count-based positioning calculation:`, {
+      currentSlide: props.current,
+      totalSlides: total,
+      slideProgressRatio: `(${props.current - 1})/(${total - 1}) = ${((props.current - 1) / (total - 1)).toFixed(4)}`,
+      finalPercentage: percentage.toFixed(2) + '%',
+      math: `((${props.current} - 1) / (${total} - 1)) * 100 = ${percentage.toFixed(2)}%`
+    });
   }
 
   // Ensure percentage stays within 0-100%

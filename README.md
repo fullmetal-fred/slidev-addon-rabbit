@@ -53,13 +53,13 @@ addons:
 rabbit:
   slideNum: true
   useSlideTimes: true  # Enable time-based slide tracking
+  defaultSlideTime: 2  # Default time for slides without slideTime attribute (defaults to 2 minutes)
 ---
 ```
 
 When `useSlideTimes` is enabled:
 
 - The **flag** represents the total presentation time (sum of all slide time budgets)
-- The **rabbit** represents the cumulative time budget up to the current slide
 - The **turtle** represents the actual elapsed time since presentation start
 - **No time query parameter is needed** in the URL - the plugin will automatically use the time values from your slides
 
