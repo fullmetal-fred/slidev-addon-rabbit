@@ -31,6 +31,7 @@ export default {
 
     return {
       positionPercent: 0,
+      lastLoggedPosition: -1, // Track last logged position to avoid spam
       intervalId: null,
       timerMode: storedMode,
       startTime: storedStartTime ? parseInt(storedStartTime) : null,
@@ -51,11 +52,8 @@ export default {
     positionStyle() {
       const percent = this.positionPercent;
 
-      console.log(`[Turtle] Position: ${percent}%, isLatter: ${this.isLatter}`);
-
       if (this.isLatter) {
         // In the latter half, use transform to align right edge with position
-        console.log(`[Turtle] Using transform for right-edge alignment at ${percent}%`);
         return {
           left: percent + '%',
           transform: 'translateX(-100%)',
@@ -63,7 +61,6 @@ export default {
         };
       } else {
         // In the first half, use normal left positioning
-        console.log(`[Turtle] Using left positioning: ${percent}%`);
         return {
           left: percent + '%',
           transform: 'none',
@@ -169,8 +166,14 @@ export default {
         progressPercent = 100;
       }
 
+      // Only log if position has changed significantly (avoid spam)
+      const roundedPercent = Math.round(progressPercent * 10) / 10; // Round to 1 decimal place
+      if (Math.abs(roundedPercent - this.lastLoggedPosition) >= 0.1) {
+        console.log(`[Turtle] Position updated: ${this.lastLoggedPosition}% -> ${roundedPercent}%`);
+        this.lastLoggedPosition = roundedPercent;
+      }
+
       this.positionPercent = progressPercent;
-      console.log(`[Turtle] Updated position to ${progressPercent}%`);
     }
   }
 };
