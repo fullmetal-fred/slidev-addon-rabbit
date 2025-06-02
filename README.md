@@ -20,11 +20,52 @@ As the presentation begins, the rabbit and the turtle aim for the goal. **The ra
 1. Apply `slidev-addon-rabbit` to your slidev project
    - See [Use Addon \| Slidev](https://sli.dev/addons/use.html)
 2. Run slidev (e.g.: `npm run dev`)
-3. Attach url query `?time=10` to presentation url, and access it
-   - e.g.: `http://localhost:3030/?time=10`
+3. Either:
+   - Attach url query `?time=10` to presentation url, and access it (e.g.: `http://localhost:3030/?time=10`), OR
+   - Use slide time attributes with `use_slide_times: true` (see below) - no query parameter needed in this case
+
+### Using Slide Time Attributes
+
+You can specify time budgets for individual slides by adding a `time` attribute to each slide's frontmatter. The time value should be in minutes.
+
+```md
+---
+title: My First Slide
+time: 2  # This slide has a time budget of 2 minutes
+---
+
+# My Presentation
+
+---
+title: Complex Topic
+time: 5  # This slide has a time budget of 5 minutes
+---
+
+# Complex Topic
+```
+
+To enable time-based slide tracking, add the `use_slide_times: true` option to your rabbit configuration:
+
+```yaml
+---
+addons:
+  - slidev-addon-rabbit
+rabbit:
+  slideNum: true
+  use_slide_times: true  # Enable time-based slide tracking
+---
+```
+
+When `use_slide_times` is enabled:
+
+- The **flag** represents the total presentation time (sum of all slide time budgets)
+- The **rabbit** represents the cumulative time budget up to the current slide
+- The **turtle** represents the actual elapsed time since presentation start
+- **No time query parameter is needed** in the URL - the plugin will automatically use the time values from your slides
+
+> Note: If no time attributes are found in the frontmatter, the addon will fall back to the standard slide-count-based positioning.
 
 ## Configs
-
 
 ```yaml
 ---
@@ -33,6 +74,7 @@ addons:
   - slidev-addon-rabbit
 rabbit:
   slideNum: true   # Show current/total slide numbers next to a rabbit icon
+  use_slide_times: false  # Set to true to enable time-based slide tracking (default: false)
 ...
 ---
 ```

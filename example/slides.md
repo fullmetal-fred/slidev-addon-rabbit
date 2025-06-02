@@ -21,9 +21,11 @@ transition: slide-left
 # enable MDC Syntax: https://sli.dev/features/mdc
 mdc: true
 addons:
-  - slidev-addon-rabbit
+  - ./
 rabbit:
   slideNum: true
+  use_slide_times: true # Enable time-based slide tracking
+time: 1
 ---
 
 # Welcome to Slidev
@@ -52,6 +54,7 @@ The last comment block of each slide will be treated as slide notes. It will be 
 
 ---
 transition: fade-out
+time: 2
 ---
 
 # What is Slidev?
@@ -94,6 +97,7 @@ Here is another comment.
 ---
 transition: slide-up
 level: 2
+time: 1
 ---
 
 # Navigation
@@ -121,6 +125,7 @@ Hover on the bottom-left corner to see the navigation's controls panel, [learn m
 ---
 layout: two-cols
 layoutClass: gap-16
+time: 0.5
 ---
 
 # Table of contents
@@ -140,6 +145,7 @@ The title will be inferred from your slide content, or you can override it with 
 ---
 layout: image-right
 image: https://cover.sli.dev
+time: 10
 ---
 
 # Code
@@ -193,6 +199,7 @@ Notes can also sync with clicks
 
 ---
 level: 2
+time: 1
 ---
 
 # Shiki Magic Move
@@ -266,6 +273,8 @@ const author = {
 ````
 
 ---
+time: 1
+---
 
 # Components
 
@@ -309,6 +318,7 @@ Also, HTML elements are valid:
 
 ---
 class: px-20
+time: 2
 ---
 
 # Themes
@@ -375,6 +385,8 @@ also allows you to add
 
 </div>
 
+---
+time: 1
 ---
 
 # Motions
@@ -456,6 +468,8 @@ const final = {
 </div>
 
 ---
+time: 4
+---
 
 # LaTeX
 
@@ -477,6 +491,8 @@ $$
 
 [Learn more](https://sli.dev/features/latex)
 
+---
+time: 3
 ---
 
 # Diagrams
@@ -559,6 +575,7 @@ Learn more: [Mermaid Diagrams](https://sli.dev/features/mermaid) and [PlantUML D
 foo: bar
 dragPos:
   square: 691,32,167,_,-16
+time: 1
 ---
 
 # Draggable Elements
@@ -603,6 +620,7 @@ Double-click on the draggable elements to edit their positions.
 ---
 src: ./pages/imported-slides.md
 hide: false
+time: 1
 ---
 
 ---
@@ -634,6 +652,7 @@ console.log(emptyArray<number>(10).reduce(fib => [...fib, fib.at(-1)! + fib.at(-
 ---
 layout: center
 class: text-center
+time: 1
 ---
 
 # Learn More

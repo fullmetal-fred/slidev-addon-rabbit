@@ -1,11 +1,159 @@
-.rabbit-container {
-    position: absolute;
-    top: 96%;
-    z-index: 99;
+/* Main container styling */
+.rablte-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
 }
 
+/* Race track container */
+.race-track {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    display: flex;
+    z-index: 98;
+}
+
+/* Lanes container */
+.lanes {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+}
+
+/* Finish area */
+.finish-area {
+    width: 30px;
+    position: relative;
+    border-left: 1px solid rgba(255, 255, 255, 0.3);
+    /* Finish line matching lane divider style */
+}
+
+/* Flag container styling */
+.flag-container {
+    position: absolute;
+    z-index: 100;
+    /* Above other elements */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    /* Perfect horizontal and vertical centering */
+    height: 25px;
+    display: flex;
+    align-items: center;
+}
+
+/* Lane styling */
+.rabbit-lane,
+.turtle-lane {
+    position: relative;
+    width: 100%;
+    height: calc(50% - 1px);
+    /* Each lane takes half the height minus divider */
+    overflow: visible;
+    display: flex;
+    align-items: center;
+    /* Center contents vertically */
+}
+
+/* Lane divider styling */
+.lane-divider {
+    width: 100%;
+    height: 1px;
+    background-color: rgba(255, 255, 255, 0.3);
+    margin: 0px;
+}
+
+/* Item styling within lanes */
+.lane-item {
+    position: relative;
+    left: 0;
+    height: calc(100% - 6px);
+    /* Leave small gap at top and bottom */
+    display: flex;
+    align-items: center;
+    /* Center items vertically */
+    z-index: 99;
+    /* Ensure visibility */
+}
+
+/* Icon styling */
 .icon {
-    width: 20px;
-    height: 20px;
-    transform: scale(-1,1);
+    width: auto;
+    /* Auto width to maintain aspect ratio */
+    height: 85%;
+    /* Icon takes up most but not all of lane height */
+    transform: scale(-1, 1);
+    display: block;
+    margin-right: 2px;
+    /* Add 2px space on the right of animal icons */
+}
+
+/* Counter display styling */
+.counter-display {
+    padding: 0.15rem 0.15rem;
+    font-size: 0.65rem;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 0.375rem;
+    text-align: center;
+    white-space: nowrap;
+    min-width: 2.5rem;
+    margin-left: 3px;
+    display: flex;
+    align-items: center;
+    /* Center text vertically */
+    justify-content: center;
+    /* Center text horizontally */
+    height: 70%;
+    /* Take up most but not all of the lane height */
+}
+
+/* Float positioning */
+.float-left {
+    order: -1;
+    /* Display before icon */
+    margin-right: 3px;
+    margin-left: 0;
+}
+
+.float-right {
+    order: 1;
+    /* Display after icon */
+    margin-left: 3px;
+}
+
+/* Position variations - keep these for compatibility */
+.counter-display.top-left {
+    position: absolute;
+    top: -1.5rem;
+    left: 0;
+}
+
+.counter-display.top-right {
+    position: absolute;
+    top: -1.5rem;
+    right: 0;
+}
+
+.counter-display.top-center {
+    position: absolute;
+    top: -1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* Custom alignments for screen edge cases */
+.counter-display.left-edge {
+    left: 0;
+    transform: none;
+}
+
+.counter-display.right-edge {
+    left: auto;
+    right: 0;
+    transform: none;
 }

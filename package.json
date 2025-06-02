@@ -10,7 +10,7 @@
     "example"
   ],
   "scripts": {
-    "dev": "slidev example.md --remote 0.0.0.0",
+    "dev": "slidev ./example/slides.md --remote 0.0.0.0",
     "build": "slidev build example.md",
     "export": "slidev export example.md",
     "screenshot": "slidev export example.md --format png",

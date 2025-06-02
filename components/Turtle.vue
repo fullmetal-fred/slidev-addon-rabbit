@@ -1,43 +1,177 @@
 <template>
-  <div class="rabbit-container" :style="{left: left + 'px'}">
+  <div class="lane-item" :style="positionStyle">
     <emojione-monotone-turtle class="icon" />
+    <div v-if="showTimerDisplay" class="counter-display" :class="[isLatter ? 'float-left' : 'float-right']">
+      <template v-if="isFutureStart">
+        -{{ formattedCountdown }}
+      </template>
+      <template v-else>
+        {{ formattedElapsedTime }}
+      </template>
+    </div>
   </div>
 </template>
 
 <script>
+const STORAGE_KEY_PREFIX = 'slidev-turtle-';
+const MODE_KEY = `${STORAGE_KEY_PREFIX}mode`;
+const START_TIME_KEY = `${STORAGE_KEY_PREFIX}start-time`;
+
 export default {
   props: {
-    current: Number
+    current: Number,
+    totalTime: {
+      type: Number,
+      default: 10
+    }
   },
   data() {
-    const maxWidth = this.$slidev.configs.canvasWidth - 20; // 20 is margin-right
-    const time = this.$route?.query?.time || 10;
+    const storedMode = localStorage.getItem(MODE_KEY) || 'incremental';
+    const storedStartTime = localStorage.getItem(START_TIME_KEY);
+
     return {
-      left: 0,
+      positionPercent: 0,
       intervalId: null,
-      maxWidth: maxWidth,
-      speed: maxWidth / (time * 60 * 10) // 100ms毎の変化量
+      timerMode: storedMode,
+      startTime: storedStartTime ? parseInt(storedStartTime) : null,
+      incrementalStart: storedStartTime ? parseInt(storedStartTime) : Date.now(),
+      showTimerDisplay: true,
+      elapsedTime: 0,
+      countdown: 0,
+      isFutureStart: false
     }
   },
-  beforeUpdate() {
-    // Reset when opening the first page
-    if (this.current == 1) {
-      this.left = 0;
-      if (this.intervalId) {
-        clearInterval(this.intervalId);
-        this.intervalId = null;
+  computed: {
+    // Determine if the turtle is in the latter half of the screen
+    isLatter() {
+      return this.positionPercent > 50;
+    },
+
+    // Dynamic positioning style that uses transform for right-edge alignment
+    positionStyle() {
+      const percent = this.positionPercent;
+
+      console.log(`[Turtle] Position: ${percent}%, isLatter: ${this.isLatter}`);
+
+      if (this.isLatter) {
+        // In the latter half, use transform to align right edge with position
+        console.log(`[Turtle] Using transform for right-edge alignment at ${percent}%`);
+        return {
+          left: percent + '%',
+          transform: 'translateX(-100%)',
+          right: 'auto'
+        };
+      } else {
+        // In the first half, use normal left positioning
+        console.log(`[Turtle] Using left positioning: ${percent}%`);
+        return {
+          left: percent + '%',
+          transform: 'none',
+          right: 'auto'
+        };
+      }
+    },
+
+    // Format elapsed time for display (hours:minutes:seconds if hours > 0, otherwise minutes:seconds)
+    formattedElapsedTime() {
+      const hours = Math.floor(this.elapsedTime / 3600);
+      const minutes = Math.floor((this.elapsedTime % 3600) / 60);
+      const seconds = Math.floor(this.elapsedTime % 60);
+
+      if (hours > 0) {
+        return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      } else {
+        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      }
+    },
+    // Format countdown for future start times (hours:minutes:seconds if hours > 0, otherwise minutes:seconds)
+    formattedCountdown() {
+      if (this.countdown <= 0) return "0:00";
+
+      const hours = Math.floor(this.countdown / 3600);
+      const minutes = Math.floor((this.countdown % 3600) / 60);
+      const seconds = Math.floor(this.countdown % 60);
+
+      if (hours > 0) {
+        return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      } else {
+        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
       }
     }
-    // do nothing if the turtle already starts
-    if (this.intervalId) {
-      return;
+  },
+  watch: {
+    totalTime: {
+      handler() {
+        // Recalculate position when totalTime changes
+        this.updateTurtlePosition();
+      },
+      immediate: true
     }
-    // let the turtle run
+  },
+  mounted() {
+    // Initialize the turtle position on component mount
+    this.initializeTurtle();
+
+    // Set up the interval to update position
     this.intervalId = setInterval(() => {
-      if (this.left < this.maxWidth) {
-        this.left += this.speed;
-      }
+      this.updateTurtlePosition();
     }, 100); // update per 100ms
+  },
+  beforeUnmount() {
+    // Clean up interval when component unmounts
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+    }
+  },
+  methods: {
+    initializeTurtle() {
+      if (this.timerMode === 'incremental') {
+        // In incremental mode, start counting from the stored start time or now
+        this.updateTurtlePosition();
+      } else if (this.timerMode === 'wallclock' && this.startTime) {
+        // In wall clock mode, calculate position based on start time
+        this.updateTurtlePosition();
+      } else {
+        // Default case - start at 0
+        this.positionPercent = 0;
+      }
+    },
+    updateTurtlePosition() {
+      const now = Date.now();
+      let progressPercent = 0;
+
+      if (this.timerMode === 'incremental') {
+        // Incremental mode: progress since start time
+        this.elapsedTime = (now - this.incrementalStart) / 1000;
+        const totalTimeSeconds = this.totalTime * 60;
+        const progress = Math.min(this.elapsedTime / totalTimeSeconds, 1);
+        progressPercent = progress * 100;
+      }
+      else if (this.timerMode === 'wallclock' && this.startTime) {
+        // Check if start time is in the future
+        if (this.startTime > now) {
+          // Calculate countdown
+          this.countdown = (this.startTime - now) / 1000;
+          this.isFutureStart = true;
+          progressPercent = 0; // Keep at starting position
+        } else {
+          // Start time has passed, calculate normal position
+          this.isFutureStart = false;
+          this.elapsedTime = (now - this.startTime) / 1000;
+          const totalTimeSeconds = this.totalTime * 60;
+          const progress = Math.min(this.elapsedTime / totalTimeSeconds, 1);
+          progressPercent = progress * 100;
+        }
+      }
+
+      // Ensure percentage stays within 0-100%
+      if (progressPercent > 100) {
+        progressPercent = 100;
+      }
+
+      this.positionPercent = progressPercent;
+      console.log(`[Turtle] Updated position to ${progressPercent}%`);
+    }
   }
 };
 </script>
