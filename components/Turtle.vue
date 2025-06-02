@@ -44,7 +44,12 @@ export default {
       showTimerDisplay: true,
       elapsedTime: 0,
       countdown: 0,
-      isFutureStart: false
+      isFutureStart: false,
+      sharedTimerRegistry: window.__slidevRabbitSharedTimer = window.__slidevRabbitSharedTimer || {
+        intervals: new Set(),
+        masterInterval: null,
+        tick: 0
+      }
     }
   },
   computed: {
@@ -57,25 +62,7 @@ export default {
     positionStyle() {
       const percent = this.positionPercent;
 
-      // Special handling for start position (0%)
-      if (percent <= 0) {
-        return {
-          left: '0%',
-          transform: 'none', // Left-align with the start
-          right: 'auto'
-        };
-      }
-
-      // Special handling for end position (100%)
-      if (percent >= 100) {
-        return {
-          left: '100%',
-          transform: 'translateX(-100%)', // Right-align with the end
-          right: 'auto'
-        };
-      }
-
-      // Middle positions - center on tick marks
+      // Always center on tick marks
       if (this.isLatter) {
         // In the latter half, start from right-edge alignment and adjust to center the icon
         return {
@@ -127,15 +114,34 @@ export default {
     // Initialize the turtle position on component mount
     this.initializeTurtle();
 
-    // Set up the interval to update position - once per second for calmer logging
-    this.intervalId = setInterval(() => {
+    // Register with shared timer system instead of creating own interval
+    const updateFn = () => {
       this.updateTurtlePosition();
-    }, 1000); // update per 1000ms (1 second) instead of 100ms
+    };
+
+    this.sharedTimerRegistry.intervals.add(updateFn);
+
+    // Create master interval if it doesn't exist
+    if (!this.sharedTimerRegistry.masterInterval) {
+      this.sharedTimerRegistry.masterInterval = setInterval(() => {
+        this.sharedTimerRegistry.tick++;
+        this.sharedTimerRegistry.intervals.forEach(fn => fn());
+      }, 1000);
+    }
+
+    // Store reference for cleanup
+    this.updateFunction = updateFn;
   },
   beforeUnmount() {
-    // Clean up interval when component unmounts
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
+    // Clean up from shared timer registry
+    if (this.updateFunction) {
+      this.sharedTimerRegistry.intervals.delete(this.updateFunction);
+    }
+
+    // Clean up master interval if no more components
+    if (this.sharedTimerRegistry.intervals.size === 0 && this.sharedTimerRegistry.masterInterval) {
+      clearInterval(this.sharedTimerRegistry.masterInterval);
+      this.sharedTimerRegistry.masterInterval = null;
     }
   },
   methods: {

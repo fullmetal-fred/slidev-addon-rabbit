@@ -76,6 +76,8 @@ rabbit:
   useSlideTimes: false  # Set to true to enable time-based slide tracking (default: false)
   defaultSlideTime: 2  # Default time for slides without slideTime attribute (defaults to 2 minutes)
   showSlideMarkers: false  # Show tick marks along the track divider for each slide (default: false)
+  showSlideCountdown: false  # Show individual slide countdown timer on rabbit (default: false)
+  pauseSlideCountdownUntilStart: true  # Pause slide countdown until presentation starts in wall clock mode (default: true)
   debug: false  # Enable debug logging to console (default: false)
 ...
 ---

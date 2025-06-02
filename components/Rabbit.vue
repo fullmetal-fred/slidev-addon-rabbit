@@ -4,17 +4,49 @@
     <div class="time-difference-display" :class="[isLatter ? 'float-left' : 'float-right', timeDifferenceClass]">
       {{ formattedTimeDifference }}
     </div>
+    <!-- New slide countdown display - only show if enabled -->
+    <div v-if="showSlideCountdown" class="time-difference-display"
+      :class="[isLatter ? 'float-left' : 'float-right', slideCountdownClass]">
+      {{ formattedSlideCountdown }}
+    </div>
   </div>
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
 
 const showSlideNum = $slidev.configs?.rabbit?.slideNum ?? false;
+const showSlideCountdown = $slidev.configs?.rabbit?.showSlideCountdown ?? false;
+const pauseSlideCountdownUntilStart = $slidev.configs?.rabbit?.pauseSlideCountdownUntilStart ?? true;
 const total = $slidev.nav.total;
 
 // Track whether we're on the latter half of the screen
 const isLatter = ref(false);
+
+// Track slide timing
+const slideStartTime = ref(Date.now());
+const currentSlideElapsed = ref(0);
+const intervalId = ref(null);
+
+// Shared timer registry for synchronization with Turtle
+const sharedTimerRegistry = window.__slidevRabbitSharedTimer = window.__slidevRabbitSharedTimer || {
+  intervals: new Set(),
+  masterInterval: null,
+  tick: 0
+};
+
+// Track turtle position when slide starts (for lap timer calculation)
+const turtlePositionAtSlideStart = ref(0);
+
+// Track presentation timing (same logic as Turtle)
+const STORAGE_KEY_PREFIX = 'slidev-turtle-';
+const MODE_KEY = `${STORAGE_KEY_PREFIX}mode`;
+const START_TIME_KEY = `${STORAGE_KEY_PREFIX}start-time`;
+
+const timerMode = ref(localStorage.getItem(MODE_KEY) || 'incremental');
+const storedStartTime = localStorage.getItem(START_TIME_KEY);
+const presentationStartTime = ref(storedStartTime ? parseInt(storedStartTime) : null);
+const isFutureStart = ref(false);
 
 const props = defineProps({
   current: Number,
@@ -101,8 +133,8 @@ const positionPercent = computed(() => {
         return sum + (!isNaN(numberTime) ? numberTime : 0);
       }, 0);
 
-      // Calculate time elapsed up to AND INCLUDING the current slide
-      for (let i = 0; i < props.current; i++) {
+      // Calculate time elapsed up to (but NOT including) the current slide
+      for (let i = 0; i < props.current - 1; i++) {
         const numberTime = Number(props.slideTimes[i]);
         cumulativeTime += !isNaN(numberTime) ? numberTime : 0;
       }
@@ -176,33 +208,9 @@ const positionStyle = computed(() => {
     console.log(`[Rabbit] Position: ${percent}%, isLatter: ${isLatter.value}`);
   }
 
-  // Special handling for start position (0% or slide 1)
-  if (percent <= 0 || props.current === 1) {
-    if (props.debugEnabled) {
-      console.log(`[Rabbit] Using left-align for start position`);
-    }
-    return {
-      left: '0%',
-      transform: 'none', // Left-align with the start
-      right: 'auto'
-    };
-  }
-
-  // Special handling for end position (100% or last slide)
-  if (percent >= 100 || props.current === total) {
-    if (props.debugEnabled) {
-      console.log(`[Rabbit] Using right-align for end position`);
-    }
-    return {
-      left: '100%',
-      transform: 'translateX(-100%)', // Right-align with the end
-      right: 'auto'
-    };
-  }
-
-  // Middle positions - center the rabbit icon on the tick mark
+  // Always center the rabbit icon on the tick mark
   if (props.debugEnabled) {
-    console.log(`[Rabbit] Using centered positioning at ${percent}% (middle position)`);
+    console.log(`[Rabbit] Using centered positioning at ${percent}%`);
   }
 
   if (isLatter.value) {
@@ -235,9 +243,9 @@ watch(positionPercent, (newPercent) => {
 // Calculate the rabbit's current time position in minutes
 const rabbitTimePosition = computed(() => {
   if (useTimeBasedPositioning.value && props.slideTimes && props.slideTimes.length > 0) {
-    // Calculate cumulative time up to current slide (including current slide)
+    // Calculate cumulative time up to (but NOT including) current slide
     let cumulativeTime = 0;
-    for (let i = 0; i < props.current; i++) {
+    for (let i = 0; i < props.current - 1; i++) {
       const numberTime = Number(props.slideTimes[i]);
       cumulativeTime += !isNaN(numberTime) ? numberTime : 0;
     }
@@ -249,11 +257,53 @@ const rabbitTimePosition = computed(() => {
   }
 });
 
-// Calculate time difference (rabbit time - turtle time)
+// Calculate time difference like a lap timer - shows difference if current slide takes full planned time
 const timeDifferenceMinutes = computed(() => {
-  const rabbitMinutes = rabbitTimePosition.value;
-  const turtleMinutes = props.turtleElapsedTime / 60; // Convert seconds to minutes
-  return rabbitMinutes - turtleMinutes;
+  // Calculate where rabbit will be after completing the current slide (using full planned time)
+  let rabbitFutureMinutes;
+
+  if (useTimeBasedPositioning.value && props.slideTimes && props.slideTimes.length > 0) {
+    // Time-based: cumulative time up to current slide + full planned time for current slide
+    let cumulativeTime = 0;
+
+    // Add time from completed slides
+    for (let i = 0; i < props.current - 1; i++) {
+      const numberTime = Number(props.slideTimes[i]);
+      cumulativeTime += !isNaN(numberTime) ? numberTime : 0;
+    }
+
+    // Add the FULL planned time for current slide (not elapsed time)
+    const currentSlideTimeMinutes = Number(props.slideTimes[props.current - 1]) || 2;
+    rabbitFutureMinutes = cumulativeTime + currentSlideTimeMinutes;
+  } else {
+    // Slide-count-based: calculate equivalent time position after current slide
+    const slideProgressRatio = props.current / (total - 1);
+    rabbitFutureMinutes = slideProgressRatio * props.totalTimeMinutes;
+  }
+
+  // Calculate where turtle will be when we finish the current slide
+  const currentSlideElapsedMinutes = currentSlideElapsed.value / 60;
+  const currentSlideTimeMinutes = Number(props.slideTimes[props.current - 1]) || 2;
+  const remainingSlideTimeMinutes = Math.max(0, currentSlideTimeMinutes - currentSlideElapsedMinutes);
+
+  // Turtle's current position + time remaining on this slide = where turtle will be when slide is done
+  const turtleCurrentMinutes = props.turtleElapsedTime / 60;
+  const turtleFutureMinutes = turtleCurrentMinutes + remainingSlideTimeMinutes;
+
+  if (props.debugEnabled) {
+    console.log('[Rabbit] Lap timer calculation:', {
+      currentSlide: props.current,
+      rabbitFutureMinutes,
+      turtleCurrentMinutes,
+      currentSlideElapsedMinutes,
+      currentSlideTimeMinutes,
+      remainingSlideTimeMinutes,
+      turtleFutureMinutes,
+      difference: rabbitFutureMinutes - turtleFutureMinutes
+    });
+  }
+
+  return rabbitFutureMinutes - turtleFutureMinutes;
 });
 
 // Format the time difference for display
@@ -277,6 +327,139 @@ const timeDifferenceClass = computed(() => {
     return 'time-warning'; // Yellow when close to turtle
   } else {
     return 'time-ahead'; // Green when ahead of turtle
+  }
+});
+
+// Get current slide time in minutes
+const currentSlideTimeMinutes = computed(() => {
+  if (props.slideTimes && props.slideTimes.length > 0 && props.current <= props.slideTimes.length) {
+    const slideTime = Number(props.slideTimes[props.current - 1]);
+    return !isNaN(slideTime) ? slideTime : 2; // Default to 2 minutes if invalid
+  }
+  return 2; // Default slide time
+});
+
+// Calculate slide remaining time in seconds
+const slideRemainingSeconds = computed(() => {
+  const slideTimeSeconds = currentSlideTimeMinutes.value * 60;
+  return slideTimeSeconds - currentSlideElapsed.value;
+});
+
+// Format slide countdown for display
+const formattedSlideCountdown = computed(() => {
+  // If presentation hasn't started, show full slide time as countdown
+  if (isFutureStart.value) {
+    const slideTimeSeconds = currentSlideTimeMinutes.value * 60;
+    const hours = Math.floor(slideTimeSeconds / 3600);
+    const minutes = Math.floor((slideTimeSeconds % 3600) / 60);
+    const seconds = Math.floor(slideTimeSeconds % 60);
+
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
+
+  // Normal countdown logic
+  const remainingSeconds = Math.abs(slideRemainingSeconds.value);
+  const hours = Math.floor(remainingSeconds / 3600);
+  const minutes = Math.floor((remainingSeconds % 3600) / 60);
+  const seconds = Math.floor(remainingSeconds % 60);
+
+  const sign = slideRemainingSeconds.value < 0 ? '-' : '';
+
+  // Always use hh:mm:ss format
+  return `${sign}${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+});
+
+// CSS class for slide countdown styling
+const slideCountdownClass = computed(() => {
+  // If presentation hasn't started, show as ahead (green)
+  if (isFutureStart.value) {
+    return 'time-ahead';
+  }
+
+  // Normal styling logic
+  if (slideRemainingSeconds.value < 0) {
+    return 'time-behind'; // Red when over slide time
+  } else if (slideRemainingSeconds.value < 60) {
+    return 'time-warning'; // Yellow when less than 1 minute left
+  } else {
+    return 'time-ahead'; // Green when plenty of time left
+  }
+});
+
+// Function to update slide elapsed time
+const updateSlideElapsed = () => {
+  const now = Date.now();
+
+  // Check if presentation hasn't started yet (same logic as Turtle) - only if pause feature is enabled
+  if (pauseSlideCountdownUntilStart && timerMode.value === 'wallclock' && presentationStartTime.value) {
+    if (presentationStartTime.value > now) {
+      // Presentation hasn't started yet - don't count slide time
+      isFutureStart.value = true;
+      currentSlideElapsed.value = 0;
+      return;
+    } else {
+      // Presentation has started
+      isFutureStart.value = false;
+    }
+  } else {
+    isFutureStart.value = false;
+  }
+
+  // Only update slide elapsed time if presentation has started (or if pause feature is disabled)
+  if (!isFutureStart.value) {
+    currentSlideElapsed.value = (now - slideStartTime.value) / 1000;
+  }
+};
+
+// Reset slide timer when slide changes
+const resetSlideTimer = () => {
+  slideStartTime.value = Date.now();
+  currentSlideElapsed.value = 0;
+  turtlePositionAtSlideStart.value = props.turtleElapsedTime / 60; // Convert seconds to minutes
+
+  if (props.debugEnabled) {
+    console.log(`[Rabbit] Slide timer reset for slide ${props.current}, allocated time: ${currentSlideTimeMinutes.value} minutes`);
+  }
+};
+
+// Watch for slide changes
+watch(() => props.current, () => {
+  resetSlideTimer();
+}, { immediate: true });
+
+// Lifecycle hooks
+onMounted(() => {
+  resetSlideTimer();
+
+  // Register with shared timer system instead of creating own interval
+  const updateFn = () => {
+    updateSlideElapsed();
+  };
+
+  sharedTimerRegistry.intervals.add(updateFn);
+
+  // Create master interval if it doesn't exist
+  if (!sharedTimerRegistry.masterInterval) {
+    sharedTimerRegistry.masterInterval = setInterval(() => {
+      sharedTimerRegistry.tick++;
+      sharedTimerRegistry.intervals.forEach(fn => fn());
+    }, 1000);
+  }
+
+  // Store reference for cleanup
+  intervalId.value = updateFn;
+});
+
+onUnmounted(() => {
+  // Clean up from shared timer registry
+  if (intervalId.value) {
+    sharedTimerRegistry.intervals.delete(intervalId.value);
+  }
+
+  // Clean up master interval if no more components
+  if (sharedTimerRegistry.intervals.size === 0 && sharedTimerRegistry.masterInterval) {
+    clearInterval(sharedTimerRegistry.masterInterval);
+    sharedTimerRegistry.masterInterval = null;
   }
 });
 </script>

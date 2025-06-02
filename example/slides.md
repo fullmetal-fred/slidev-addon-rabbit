@@ -28,6 +28,8 @@ rabbit:
   showSlideMarkers: true # Show tick marks along the track divider for each slide
   debug: true # Enable debug logging to console (set to true for development)
   showSlideTimeLabels: false # Show slide time labels on the track divider
+  showSlideCountdown: true # Show individual slide countdown timer on rabbit
+  pauseSlideCountdownUntilStart: true # Pause slide countdown until presentation starts in wall clock mode
 slideTime: 1
 ---
 

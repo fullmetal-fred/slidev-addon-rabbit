@@ -1,9 +1,9 @@
 <template>
   <!-- when exporting, this footer isn't exported -->
   <footer v-if="$route.query.print !== null" class="rablte-container">
-    <!-- Race track container with clear separation of lanes and finish area -->
+    <!-- Race track container with proper spacing -->
     <div class="race-track">
-      <!-- Lanes container (all but finish-line area) -->
+      <!-- Lanes container with spacing for first/last tick visibility -->
       <div class="lanes">
         <!-- Rabbit lane -->
         <div class="rabbit-lane">
@@ -15,6 +15,8 @@
         <!-- Divider line with optional tick marks and time labels -->
         <div class="lane-divider">
           <div v-if="showSlideMarkers" class="slide-tick-marks">
+            <!-- Add starting tick at 0% -->
+            <div class="slide-tick start-tick" :style="{ left: '0%' }" title="Start"></div>
             <div v-for="(slidePosition, index) in slideMarkerPositions" :key="index" class="slide-tick"
               :style="{ left: slidePosition + '%' }" :title="`Slide ${index + 1}`"></div>
           </div>
@@ -34,7 +36,7 @@
         </div>
       </div>
 
-      <!-- Finish line area -->
+      <!-- Finish area -->
       <div class="finish-area">
         <Flag :slide-times="slideTimes" :total-time-minutes="totalTimeMinutes"
           :turtle-elapsed-time="turtleElapsedTime" />
@@ -58,6 +60,8 @@ export default {
     const slideTimeLabels = this.calculateSlideTimeLabels(slideTimes, slideMarkerPositions);
     const debugEnabled = this.$slidev.configs?.rabbit?.debug ?? false;
 
+    const lastTickPosition = slideMarkerPositions.length > 0 ? slideMarkerPositions[slideMarkerPositions.length - 1] : 100;
+
     if (debugEnabled) {
       console.log('[RabbitDebug] Configuration:', {
         useSlideTimesEnabled,
@@ -68,7 +72,8 @@ export default {
         showSlideMarkers,
         showSlideTimeLabels,
         slideMarkerPositions,
-        slideTimeLabels
+        slideTimeLabels,
+        lastTickPosition
       });
     }
 
@@ -82,7 +87,8 @@ export default {
       slideMarkerPositions,
       slideTimeLabels,
       turtleElapsedTime: 0,
-      debugEnabled
+      debugEnabled,
+      lastTickPosition
     }
   },
   methods: {
