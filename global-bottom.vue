@@ -31,7 +31,7 @@
 <script>
 export default {
   data() {
-    const useSlideTimesEnabled = this.$slidev.configs?.rabbit?.use_slide_times ?? false;
+    const useSlideTimesEnabled = this.$slidev.configs?.rabbit?.useSlideTimes ?? false;
     const slideTimes = this.getSlideTimes();
     // Convert query time parameter to number
     const queryTimeParam = this.$route.query.time ? parseFloat(this.$route.query.time) : 10;
@@ -58,7 +58,7 @@ export default {
       const slides = this.$slidev.nav.slides;
       console.log('[RabbitDebug] Get slides object:', slides);
       const times = slides.map(slide => {
-        const time = slide.meta.slide.frontmatter?.time;
+        const time = slide.meta.slide.frontmatter?.slideTime;
         return time ? parseFloat(time) : 0;
       });
       console.log('[RabbitDebug] Extracted slide times:', times);

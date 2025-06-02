@@ -32,7 +32,7 @@ const props = defineProps({
 
 // Add a computed property that checks for both naming conventions
 const useTimeBasedPositioning = computed(() => {
-  const configEnabled = $slidev.configs.rabbit?.use_slide_times === true;
+  const configEnabled = $slidev.configs.rabbit?.useSlideTimes === true;
   const propEnabled = props.useSlideTimesEnabled === true;
 
   // Log all Slidev nav and slide data for debugging
