@@ -176,50 +176,49 @@ const positionStyle = computed(() => {
     console.log(`[Rabbit] Position: ${percent}%, isLatter: ${isLatter.value}`);
   }
 
-  // Special handling for first and last positions - keep them aligned like turtle
-  if (props.current === 1 || props.current === total) {
-    if (isLatter.value) {
-      // In the latter half, use transform to align right edge with position
-      if (props.debugEnabled) {
-        console.log(`[Rabbit] Using transform for right-edge alignment at ${percent}% (first/last position)`);
-      }
-      return {
-        left: percent + '%',
-        transform: 'translateX(-100%)',
-        right: 'auto'
-      };
-    } else {
-      // In the first half, use normal left positioning
-      if (props.debugEnabled) {
-        console.log(`[Rabbit] Using left positioning: ${percent}% (first/last position)`);
-      }
-      return {
-        left: percent + '%',
-        transform: 'none',
-        right: 'auto'
-      };
-    }
-  } else {
-    // For middle positions, center the rabbit icon on the tick mark
+  // Special handling for start position (0% or slide 1)
+  if (percent <= 0 || props.current === 1) {
     if (props.debugEnabled) {
-      console.log(`[Rabbit] Using centered positioning at ${percent}% (middle position)`);
+      console.log(`[Rabbit] Using left-align for start position`);
     }
+    return {
+      left: '0%',
+      transform: 'none', // Left-align with the start
+      right: 'auto'
+    };
+  }
 
-    if (isLatter.value) {
-      // In the latter half, start from right-edge alignment and adjust to center the icon
-      return {
-        left: percent + '%',
-        transform: 'translateX(calc(-100% + 10px))', // Right-align container, then shift icon center to tick mark
-        right: 'auto'
-      };
-    } else {
-      // In the first half, shift left from left-edge to center the icon
-      return {
-        left: percent + '%',
-        transform: 'translateX(-10px)', // Center the rabbit icon (assuming ~20px icon width)
-        right: 'auto'
-      };
+  // Special handling for end position (100% or last slide)
+  if (percent >= 100 || props.current === total) {
+    if (props.debugEnabled) {
+      console.log(`[Rabbit] Using right-align for end position`);
     }
+    return {
+      left: '100%',
+      transform: 'translateX(-100%)', // Right-align with the end
+      right: 'auto'
+    };
+  }
+
+  // Middle positions - center the rabbit icon on the tick mark
+  if (props.debugEnabled) {
+    console.log(`[Rabbit] Using centered positioning at ${percent}% (middle position)`);
+  }
+
+  if (isLatter.value) {
+    // In the latter half, start from right-edge alignment and adjust to center the icon
+    return {
+      left: percent + '%',
+      transform: 'translateX(calc(-100% + 10px))', // Right-align container, then shift icon center to tick mark
+      right: 'auto'
+    };
+  } else {
+    // In the first half, shift left from left-edge to center the icon
+    return {
+      left: percent + '%',
+      transform: 'translateX(-10px)', // Center the rabbit icon (assuming ~20px icon width)
+      right: 'auto'
+    };
   }
 });
 

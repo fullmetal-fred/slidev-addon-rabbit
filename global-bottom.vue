@@ -12,11 +12,18 @@
             :total-time-minutes="totalTimeMinutes" :debug-enabled="debugEnabled" />
         </div>
 
-        <!-- Divider line with optional tick marks -->
+        <!-- Divider line with optional tick marks and time labels -->
         <div class="lane-divider">
           <div v-if="showSlideMarkers" class="slide-tick-marks">
             <div v-for="(slidePosition, index) in slideMarkerPositions" :key="index" class="slide-tick"
               :style="{ left: slidePosition + '%' }" :title="`Slide ${index + 1}`"></div>
+          </div>
+          <!-- Time labels between tick marks -->
+          <div v-if="showSlideMarkers && showSlideTimeLabels && slideTimes.length > 0" class="slide-time-labels">
+            <div v-for="(timeLabel, index) in slideTimeLabels" :key="`time-${index}`" class="slide-time-label"
+              :style="{ left: timeLabel.position + '%' }" :title="`${timeLabel.minutes}m for slide ${index + 1}`">
+              {{ timeLabel.display }}
+            </div>
           </div>
         </div>
 
@@ -46,7 +53,9 @@ export default {
     const totalTimeMinutes = useSlideTimesEnabled ? this.calculateTotalTime(slideTimes, queryTimeParam) : queryTimeParam;
 
     const showSlideMarkers = this.$slidev.configs?.rabbit?.showSlideMarkers ?? false;
+    const showSlideTimeLabels = this.$slidev.configs?.rabbit?.showSlideTimeLabels ?? true;
     const slideMarkerPositions = this.calculateSlideMarkerPositions(slideTimes);
+    const slideTimeLabels = this.calculateSlideTimeLabels(slideTimes, slideMarkerPositions);
     const debugEnabled = this.$slidev.configs?.rabbit?.debug ?? false;
 
     if (debugEnabled) {
@@ -57,7 +66,9 @@ export default {
         slideTimes,
         rabbitConfig: this.$slidev.configs.rabbit,
         showSlideMarkers,
-        slideMarkerPositions
+        showSlideTimeLabels,
+        slideMarkerPositions,
+        slideTimeLabels
       });
     }
 
@@ -67,7 +78,9 @@ export default {
       useSlideTimesEnabled,
       hasSlideTimes: slideTimes.length > 0 && slideTimes.some(time => time > 0),
       showSlideMarkers,
+      showSlideTimeLabels,
       slideMarkerPositions,
+      slideTimeLabels,
       turtleElapsedTime: 0,
       debugEnabled
     }
@@ -151,6 +164,44 @@ export default {
         }
         return positions;
       }
+    },
+    calculateSlideTimeLabels(slideTimes, slideMarkerPositions) {
+      if (!slideMarkerPositions || slideMarkerPositions.length === 0) {
+        return [];
+      }
+
+      return slideTimes.map((time, index) => {
+        let position;
+
+        if (index === 0) {
+          // First segment: from 0% to first tick mark
+          position = slideMarkerPositions[0] / 2;
+        } else {
+          // Subsequent segments: from previous tick mark to current tick mark
+          const prevPosition = slideMarkerPositions[index - 1];
+          const currentPosition = slideMarkerPositions[index];
+          position = prevPosition + (currentPosition - prevPosition) / 2;
+        }
+
+        // Format time display - handle fractional minutes
+        let display;
+        if (time % 1 === 0) {
+          // Whole numbers: show as integer
+          display = `${Math.floor(time)}`;
+        } else if (time < 1) {
+          // Less than 1 minute: show as decimal
+          display = time.toFixed(2).replace(/\.?0+$/, '');
+        } else {
+          // Mixed: show with minimal decimal places
+          display = time.toFixed(1).replace(/\.0$/, '');
+        }
+
+        if (this.debugEnabled) {
+          console.log(`[RabbitDebug] Slide ${index + 1} time label: ${display} (${time}m) at ${position.toFixed(2)}%`);
+        }
+
+        return { position, minutes: time, display };
+      });
     },
     handleTurtleTimeUpdate(elapsedTime) {
       this.turtleElapsedTime = elapsedTime;

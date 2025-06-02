@@ -57,6 +57,25 @@ export default {
     positionStyle() {
       const percent = this.positionPercent;
 
+      // Special handling for start position (0%)
+      if (percent <= 0) {
+        return {
+          left: '0%',
+          transform: 'none', // Left-align with the start
+          right: 'auto'
+        };
+      }
+
+      // Special handling for end position (100%)
+      if (percent >= 100) {
+        return {
+          left: '100%',
+          transform: 'translateX(-100%)', // Right-align with the end
+          right: 'auto'
+        };
+      }
+
+      // Middle positions - center on tick marks
       if (this.isLatter) {
         // In the latter half, start from right-edge alignment and adjust to center the icon
         return {

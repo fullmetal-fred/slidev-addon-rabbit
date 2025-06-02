@@ -27,6 +27,7 @@ rabbit:
   defaultSlideTime: 2 # Default time for slides without `slideTime` attribute, defaults to 2 minutes
   showSlideMarkers: true # Show tick marks along the track divider for each slide
   debug: true # Enable debug logging to console (set to true for development)
+  showSlideTimeLabels: false # Show slide time labels on the track divider
 slideTime: 1
 ---
 

@@ -2,7 +2,7 @@
   <div>
 
     <!-- Countdown display -->
-    <div class="counter-display countdown-display" :class="countdownClass">
+    <div class="time-difference-display countdown-display" :class="countdownClass">
       {{ formattedCountdown }}
     </div>
 
@@ -278,24 +278,38 @@ export default {
 
 .total-time-display {
   z-index: 101;
-  min-width: 3.5rem;
+  width: 100%;
+  /* Fill the finish area width */
   height: auto;
   /* Use minimal height instead of default 70% */
-  padding: 0.1rem 0.15rem;
-  /* Reduce vertical padding */
-  font-size: 0.6rem;
-  /* Slightly smaller font for compact display */
+  padding: 0.1rem 0.1rem;
+  /* Reduce horizontal padding to fit in 60px */
+  margin-left: 0;
+  /* Remove left margin since we're filling the space */
+  min-width: unset;
+  /* Remove min-width constraint to allow fitting in small space */
+  font-size: 0.5rem;
+  /* Smaller font to fit better */
+  box-sizing: border-box;
+  /* Include padding in width calculation */
 }
 
 .countdown-display {
   z-index: 101;
-  min-width: 3.5rem;
+  width: 100%;
+  /* Fill the finish area width */
   height: auto;
   /* Use minimal height instead of default 70% */
-  padding: 0.1rem 0.15rem;
-  /* Reduce vertical padding */
-  font-size: 0.6rem;
-  /* Slightly smaller font for compact display */
+  padding: 0.1rem 0.1rem;
+  /* Reduce horizontal padding to fit in 60px */
+  margin-left: 0;
+  /* Remove left margin since we're filling the space */
+  min-width: unset;
+  /* Remove min-width constraint to allow fitting in small space */
+  font-size: 0.5rem;
+  /* Smaller font to fit better */
+  box-sizing: border-box;
+  /* Include padding in width calculation */
 }
 
 /* Configuration Dialog - Light Mode (Default) */

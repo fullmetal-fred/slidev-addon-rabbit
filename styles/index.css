@@ -78,6 +78,8 @@
     background-color: var(--slidev-color-border, rgba(255, 255, 255, 0.3));
     margin: 0px;
     position: relative;
+    z-index: 95;
+    /* Lowest layer - the divider line itself */
 }
 
 /* Dark mode overrides for lane divider */
@@ -104,15 +106,78 @@
     pointer-events: none;
 }
 
+/* Slide time labels container */
+.slide-time-labels {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+/* Individual slide time labels */
+.slide-time-label {
+    position: absolute;
+    top: 50%;
+    /* Center vertically on the divider line */
+    font-size: 0.4rem;
+    /* Reduced from 0.5rem for better fit */
+    font-weight: 600;
+    /* Slightly bolder for better readability at smaller size */
+    color: var(--slidev-color-text, inherit);
+    /* Use normal text color */
+    background-color: var(--slidev-theme-background, #ffffff);
+    /* Match slide background at 100% opacity */
+    border-radius: 0.2rem;
+    /* Slightly smaller radius */
+    padding: 0.05rem 0.2rem;
+    /* Reduced padding for compact display */
+    white-space: nowrap;
+    transform: translate(-50%, -50%);
+    /* Center both horizontally and vertically */
+    z-index: 96;
+    /* Above line, below ticks */
+    transition: color 0.2s ease, background-color 0.2s ease;
+    min-width: 1rem;
+    /* Ensure minimum width for very small numbers */
+    text-align: center;
+}
+
+/* Dark mode overrides for slide time labels */
+.dark .slide-time-label,
+.dark-mode .slide-time-label,
+[data-theme="dark"] .slide-time-label {
+    color: rgba(255, 255, 255, 0.9);
+    /* Light text for dark mode */
+    background-color: var(--slidev-theme-background, #1a1a1a);
+    /* Dark background at 100% opacity */
+}
+
+/* Light mode overrides for slide time labels */
+:root:not(.dark):not(.dark-mode):not([data-theme="dark"]) .slide-time-label,
+.light .slide-time-label,
+[data-theme="light"] .slide-time-label {
+    color: rgba(0, 0, 0, 0.9);
+    /* Dark text for light mode */
+    background-color: var(--slidev-theme-background, #ffffff);
+    /* Light background at 100% opacity */
+}
+
 /* Individual slide tick marks - adaptive colors */
 .slide-tick {
     position: absolute;
-    top: -2px;
-    width: 2px;
-    height: 5px;
-    background-color: var(--slidev-color-border, rgba(255, 255, 255, 0.6));
+    top: -3px;
+    /* Extended further above the line */
+    width: 1px;
+    /* Reduced from 2px for thinner appearance */
+    height: 7px;
+    /* Increased from 5px for longer appearance */
+    background-color: var(--slidev-color-border, rgba(255, 255, 255, 0.3));
+    /* Match divider line color */
     transform: translateX(-50%);
-    z-index: 100;
+    z-index: 97;
+    /* Above labels, below animals */
     transition: background-color 0.2s ease, height 0.2s ease;
 }
 
@@ -120,14 +185,16 @@
 .dark .slide-tick,
 .dark-mode .slide-tick,
 [data-theme="dark"] .slide-tick {
-    background-color: rgba(255, 255, 255, 0.6);
+    background-color: rgba(255, 255, 255, 0.3);
+    /* Match divider line in dark mode */
 }
 
 /* Light mode overrides for slide ticks */
 :root:not(.dark):not(.dark-mode):not([data-theme="dark"]) .slide-tick,
 .light .slide-tick,
 [data-theme="light"] .slide-tick {
-    background-color: rgba(0, 0, 0, 0.6);
+    background-color: rgba(0, 0, 0, 0.3);
+    /* Match divider line in light mode */
 }
 
 /* Hover effect for tick marks - adaptive colors */
@@ -139,13 +206,15 @@
 .dark .slide-tick:hover,
 .dark-mode .slide-tick:hover,
 [data-theme="dark"] .slide-tick:hover {
-    background-color: rgba(255, 255, 255, 0.9);
+    background-color: rgba(255, 255, 255, 0.6);
+    /* Slightly brighter on hover */
 }
 
 :root:not(.dark):not(.dark-mode):not([data-theme="dark"]) .slide-tick:hover,
 .light .slide-tick:hover,
 [data-theme="light"] .slide-tick:hover {
-    background-color: rgba(0, 0, 0, 0.9);
+    background-color: rgba(0, 0, 0, 0.6);
+    /* Slightly darker on hover */
 }
 
 /* Item styling within lanes */
@@ -156,6 +225,7 @@
     display: flex;
     align-items: center;
     z-index: 99;
+    /* Highest layer - rabbit and turtle */
 }
 
 /* Icon styling */
