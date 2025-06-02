@@ -8,21 +8,29 @@
         <!-- Rabbit lane -->
         <div class="rabbit-lane">
           <Rabbit :current="$slidev.nav.currentPage" :slide-times="slideTimes"
-            :use-slide-times-enabled="useSlideTimesEnabled" />
+            :use-slide-times-enabled="useSlideTimesEnabled" :turtle-elapsed-time="turtleElapsedTime"
+            :total-time-minutes="totalTimeMinutes" :debug-enabled="debugEnabled" />
         </div>
 
-        <!-- Divider line -->
-        <div class="lane-divider"></div>
+        <!-- Divider line with optional tick marks -->
+        <div class="lane-divider">
+          <div v-if="showSlideMarkers" class="slide-tick-marks">
+            <div v-for="(slidePosition, index) in slideMarkerPositions" :key="index" class="slide-tick"
+              :style="{ left: slidePosition + '%' }" :title="`Slide ${index + 1}`"></div>
+          </div>
+        </div>
 
         <!-- Turtle lane -->
         <div class="turtle-lane">
-          <Turtle :current="$slidev.nav.currentPage" :total-time="totalTimeMinutes" />
+          <Turtle :current="$slidev.nav.currentPage" :total-time="totalTimeMinutes" :debug-enabled="debugEnabled"
+            @elapsed-time-update="handleTurtleTimeUpdate" />
         </div>
       </div>
 
       <!-- Finish line area -->
       <div class="finish-area">
-        <Flag />
+        <Flag :slide-times="slideTimes" :total-time-minutes="totalTimeMinutes"
+          :turtle-elapsed-time="turtleElapsedTime" />
       </div>
     </div>
   </footer>
@@ -37,19 +45,31 @@ export default {
     const queryTimeParam = this.$route.query.time ? parseFloat(this.$route.query.time) : 10;
     const totalTimeMinutes = useSlideTimesEnabled ? this.calculateTotalTime(slideTimes, queryTimeParam) : queryTimeParam;
 
-    console.log('[RabbitDebug] Configuration:', {
-      useSlideTimesEnabled,
-      totalTimeMinutes,
-      hasSlideTimes: slideTimes.length > 0 && slideTimes.some(time => time > 0),
-      slideTimes,
-      rabbitConfig: this.$slidev.configs.rabbit
-    });
+    const showSlideMarkers = this.$slidev.configs?.rabbit?.showSlideMarkers ?? false;
+    const slideMarkerPositions = this.calculateSlideMarkerPositions(slideTimes);
+    const debugEnabled = this.$slidev.configs?.rabbit?.debug ?? false;
+
+    if (debugEnabled) {
+      console.log('[RabbitDebug] Configuration:', {
+        useSlideTimesEnabled,
+        totalTimeMinutes,
+        hasSlideTimes: slideTimes.length > 0 && slideTimes.some(time => time > 0),
+        slideTimes,
+        rabbitConfig: this.$slidev.configs.rabbit,
+        showSlideMarkers,
+        slideMarkerPositions
+      });
+    }
 
     return {
       slideTimes,
       totalTimeMinutes,
       useSlideTimesEnabled,
-      hasSlideTimes: slideTimes.length > 0 && slideTimes.some(time => time > 0)
+      hasSlideTimes: slideTimes.length > 0 && slideTimes.some(time => time > 0),
+      showSlideMarkers,
+      slideMarkerPositions,
+      turtleElapsedTime: 0,
+      debugEnabled
     }
   },
   methods: {
@@ -58,12 +78,14 @@ export default {
       const slides = this.$slidev.nav.slides;
       const defaultSlideTime = this.$slidev.configs?.rabbit?.defaultSlideTime || 2; // Default to 2 minutes if not configured
 
-      console.log('[RabbitDebug] Get slides object:', slides);
-      console.log('[RabbitDebug] Default slide time configuration:', {
-        configuredValue: this.$slidev.configs?.rabbit?.defaultSlideTime,
-        effectiveDefault: defaultSlideTime,
-        rabbitConfig: this.$slidev.configs?.rabbit
-      });
+      if (this.debugEnabled) {
+        console.log('[RabbitDebug] Get slides object:', slides);
+        console.log('[RabbitDebug] Default slide time configuration:', {
+          configuredValue: this.$slidev.configs?.rabbit?.defaultSlideTime,
+          effectiveDefault: defaultSlideTime,
+          rabbitConfig: this.$slidev.configs?.rabbit
+        });
+      }
 
       const times = slides.map((slide, index) => {
         // Priority: 1. slideTime frontmatter, 2. defaultSlideTime config, 3. hardcoded 2 minutes
@@ -71,23 +93,27 @@ export default {
         const time = slideTime !== undefined ? parseFloat(slideTime) : defaultSlideTime;
         const finalTime = !isNaN(time) && time > 0 ? time : defaultSlideTime;
 
-        console.log(`[RabbitDebug] Slide ${index + 1} time calculation:`, {
-          slideIndex: index + 1,
-          frontmatterSlideTime: slideTime,
-          frontmatterExists: slideTime !== undefined,
-          parsedSlideTime: slideTime !== undefined ? parseFloat(slideTime) : null,
-          defaultSlideTimeUsed: slideTime === undefined,
-          finalTimeMinutes: finalTime,
-          calculation: slideTime !== undefined
-            ? `slideTime(${slideTime}) -> ${finalTime}`
-            : `defaultSlideTime(${defaultSlideTime}) -> ${finalTime}`
-        });
+        if (this.debugEnabled) {
+          console.log(`[RabbitDebug] Slide ${index + 1} time calculation:`, {
+            slideIndex: index + 1,
+            frontmatterSlideTime: slideTime,
+            frontmatterExists: slideTime !== undefined,
+            parsedSlideTime: slideTime !== undefined ? parseFloat(slideTime) : null,
+            defaultSlideTimeUsed: slideTime === undefined,
+            finalTimeMinutes: finalTime,
+            calculation: slideTime !== undefined
+              ? `slideTime(${slideTime}) -> ${finalTime}`
+              : `defaultSlideTime(${defaultSlideTime}) -> ${finalTime}`
+          });
+        }
 
         return finalTime;
       });
 
-      console.log('[RabbitDebug] Final slide times array:', times);
-      console.log('[RabbitDebug] Total presentation time:', times.reduce((sum, time) => sum + time, 0), 'minutes');
+      if (this.debugEnabled) {
+        console.log('[RabbitDebug] Final slide times array:', times);
+        console.log('[RabbitDebug] Total presentation time:', times.reduce((sum, time) => sum + time, 0), 'minutes');
+      }
 
       return times;
     },
@@ -95,19 +121,57 @@ export default {
       // If no slide times are specified, fallback to query time parameter
       const totalFromSlides = slideTimes.reduce((sum, time) => sum + time, 0);
       return totalFromSlides > 0 ? totalFromSlides : defaultTime;
+    },
+    calculateSlideMarkerPositions(slideTimes) {
+      const useSlideTimesEnabled = this.$slidev.configs?.rabbit?.useSlideTimes ?? false;
+      const totalSlides = this.$slidev.nav.total;
+
+      if (useSlideTimesEnabled && slideTimes.length > 0) {
+        // Time-based positioning: position markers based on cumulative time
+        const totalTime = slideTimes.reduce((sum, time) => sum + time, 0);
+        let accumulatedTime = 0;
+
+        return slideTimes.map((time, index) => {
+          accumulatedTime += time;
+          const position = (accumulatedTime / totalTime) * 100;
+          if (this.debugEnabled) {
+            console.log(`[RabbitDebug] Slide ${index + 1} marker position: ${position.toFixed(2)}% (${accumulatedTime}/${totalTime} minutes)`);
+          }
+          return position;
+        });
+      } else {
+        // Slide-count-based positioning: evenly space markers
+        const positions = [];
+        for (let i = 1; i <= totalSlides; i++) {
+          const position = (i / totalSlides) * 100;
+          positions.push(position);
+          if (this.debugEnabled) {
+            console.log(`[RabbitDebug] Slide ${i} marker position: ${position.toFixed(2)}% (slide-count-based)`);
+          }
+        }
+        return positions;
+      }
+    },
+    handleTurtleTimeUpdate(elapsedTime) {
+      this.turtleElapsedTime = elapsedTime;
+      if (this.debugEnabled) {
+        console.log('[RabbitDebug] Turtle elapsed time updated:', elapsedTime);
+      }
     }
   },
   watch: {
     '$slidev.nav.currentPage': {
       immediate: true,
       handler(newPage) {
-        const currentSlide = this.$slidev.nav.slides[newPage - 1];
-        const currentSlideTime = currentSlide?.meta?.slide?.frontmatter?.time;
-        console.log(`[RabbitDebug] Current slide #${newPage}:`, {
-          frontmatter: currentSlide?.frontmatter,
-          time: currentSlideTime,
-          useSlideTimesEnabled: this.useSlideTimesEnabled
-        });
+        if (this.debugEnabled) {
+          const currentSlide = this.$slidev.nav.slides[newPage - 1];
+          const currentSlideTime = currentSlide?.meta?.slide?.frontmatter?.time;
+          console.log(`[RabbitDebug] Current slide #${newPage}:`, {
+            frontmatter: currentSlide?.frontmatter,
+            time: currentSlideTime,
+            useSlideTimesEnabled: this.useSlideTimesEnabled
+          });
+        }
       }
     }
   }

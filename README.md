@@ -51,9 +51,9 @@ To enable time-based slide tracking, add the `useSlideTimes: true` option to you
 addons:
   - slidev-addon-rabbit
 rabbit:
-  slideNum: true
   useSlideTimes: true  # Enable time-based slide tracking
   defaultSlideTime: 2  # Default time for slides without slideTime attribute (defaults to 2 minutes)
+  showSlideMarkers: true  # Show tick marks along the track divider for each slide (defaults to false)
 ---
 ```
 
@@ -73,8 +73,10 @@ When `useSlideTimes` is enabled:
 addons:
   - slidev-addon-rabbit
 rabbit:
-  slideNum: true   # Show current/total slide numbers next to a rabbit icon
   useSlideTimes: false  # Set to true to enable time-based slide tracking (default: false)
+  defaultSlideTime: 2  # Default time for slides without slideTime attribute (defaults to 2 minutes)
+  showSlideMarkers: false  # Show tick marks along the track divider for each slide (default: false)
+  debug: false  # Enable debug logging to console (default: false)
 ...
 ---
 ```

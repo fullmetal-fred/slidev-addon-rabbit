@@ -25,26 +25,39 @@
     position: relative;
 }
 
-/* Finish area */
+/* Finish area - adaptive colors */
 .finish-area {
-    width: 30px;
+    width: 60px;
     position: relative;
-    border-left: 1px solid rgba(255, 255, 255, 0.3);
-    /* Finish line matching lane divider style */
+    border-left: 1px solid var(--slidev-color-border, rgba(255, 255, 255, 0.3));
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Dark mode overrides for finish area */
+.dark .finish-area,
+.dark-mode .finish-area,
+[data-theme="dark"] .finish-area {
+    border-left-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Light mode overrides for finish area */
+:root:not(.dark):not(.dark-mode):not([data-theme="dark"]) .finish-area,
+.light .finish-area,
+[data-theme="light"] .finish-area {
+    border-left-color: rgba(0, 0, 0, 0.3);
 }
 
 /* Flag container styling */
 .flag-container {
-    position: absolute;
     z-index: 100;
-    /* Above other elements */
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    /* Perfect horizontal and vertical centering */
     height: 25px;
     display: flex;
     align-items: center;
+    justify-content: center;
 }
 
 /* Lane styling */
@@ -53,19 +66,86 @@
     position: relative;
     width: 100%;
     height: calc(50% - 1px);
-    /* Each lane takes half the height minus divider */
     overflow: visible;
     display: flex;
     align-items: center;
-    /* Center contents vertically */
 }
 
-/* Lane divider styling */
+/* Lane divider styling - adaptive colors */
 .lane-divider {
     width: 100%;
     height: 1px;
-    background-color: rgba(255, 255, 255, 0.3);
+    background-color: var(--slidev-color-border, rgba(255, 255, 255, 0.3));
     margin: 0px;
+    position: relative;
+}
+
+/* Dark mode overrides for lane divider */
+.dark .lane-divider,
+.dark-mode .lane-divider,
+[data-theme="dark"] .lane-divider {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Light mode overrides for lane divider */
+:root:not(.dark):not(.dark-mode):not([data-theme="dark"]) .lane-divider,
+.light .lane-divider,
+[data-theme="light"] .lane-divider {
+    background-color: rgba(0, 0, 0, 0.3);
+}
+
+/* Slide tick marks container */
+.slide-tick-marks {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+/* Individual slide tick marks - adaptive colors */
+.slide-tick {
+    position: absolute;
+    top: -2px;
+    width: 2px;
+    height: 5px;
+    background-color: var(--slidev-color-border, rgba(255, 255, 255, 0.6));
+    transform: translateX(-50%);
+    z-index: 100;
+    transition: background-color 0.2s ease, height 0.2s ease;
+}
+
+/* Dark mode overrides for slide ticks */
+.dark .slide-tick,
+.dark-mode .slide-tick,
+[data-theme="dark"] .slide-tick {
+    background-color: rgba(255, 255, 255, 0.6);
+}
+
+/* Light mode overrides for slide ticks */
+:root:not(.dark):not(.dark-mode):not([data-theme="dark"]) .slide-tick,
+.light .slide-tick,
+[data-theme="light"] .slide-tick {
+    background-color: rgba(0, 0, 0, 0.6);
+}
+
+/* Hover effect for tick marks - adaptive colors */
+.slide-tick:hover {
+    height: 7px;
+    top: -3px;
+}
+
+.dark .slide-tick:hover,
+.dark-mode .slide-tick:hover,
+[data-theme="dark"] .slide-tick:hover {
+    background-color: rgba(255, 255, 255, 0.9);
+}
+
+:root:not(.dark):not(.dark-mode):not([data-theme="dark"]) .slide-tick:hover,
+.light .slide-tick:hover,
+[data-theme="light"] .slide-tick:hover {
+    background-color: rgba(0, 0, 0, 0.9);
 }
 
 /* Item styling within lanes */
@@ -73,31 +153,26 @@
     position: relative;
     left: 0;
     height: calc(100% - 6px);
-    /* Leave small gap at top and bottom */
     display: flex;
     align-items: center;
-    /* Center items vertically */
     z-index: 99;
-    /* Ensure visibility */
 }
 
 /* Icon styling */
 .icon {
     width: auto;
-    /* Auto width to maintain aspect ratio */
     height: 85%;
-    /* Icon takes up most but not all of lane height */
     transform: scale(-1, 1);
     display: block;
     margin-right: 2px;
-    /* Add 2px space on the right of animal icons */
 }
 
-/* Counter display styling */
+/* Counter display styling - adaptive backgrounds */
 .counter-display {
     padding: 0.15rem 0.15rem;
     font-size: 0.65rem;
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: var(--slidev-color-surface, rgba(255, 255, 255, 0.2));
+    color: var(--slidev-color-text, inherit);
     border-radius: 0.375rem;
     text-align: center;
     white-space: nowrap;
@@ -105,24 +180,91 @@
     margin-left: 3px;
     display: flex;
     align-items: center;
-    /* Center text vertically */
     justify-content: center;
-    /* Center text horizontally */
     height: 70%;
-    /* Take up most but not all of the lane height */
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Dark mode overrides for counter display */
+.dark .counter-display,
+.dark-mode .counter-display,
+[data-theme="dark"] .counter-display {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Light mode overrides for counter display */
+:root:not(.dark):not(.dark-mode):not([data-theme="dark"]) .counter-display,
+.light .counter-display,
+[data-theme="light"] .counter-display {
+    background-color: rgba(0, 0, 0, 0.15);
+    color: rgba(0, 0, 0, 0.8);
+}
+
+/* Time difference display styling - keep original colors but adapt text */
+.time-difference-display {
+    padding: 0.15rem 0.15rem;
+    font-size: 0.65rem;
+    border-radius: 0.375rem;
+    text-align: center;
+    white-space: nowrap;
+    min-width: 2.5rem;
+    margin-left: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 70%;
+    font-weight: 600;
+    transition: background-color 0.3s ease, color 0.2s ease;
+}
+
+/* Time difference color states - these work well in both modes */
+.time-difference-display.time-ahead {
+    background-color: rgba(34, 197, 94, 0.3);
+    color: rgb(34, 197, 94);
+}
+
+.time-difference-display.time-warning {
+    background-color: rgba(251, 191, 36, 0.3);
+    color: rgb(251, 191, 36);
+}
+
+.time-difference-display.time-behind {
+    background-color: rgba(239, 68, 68, 0.3);
+    color: rgb(239, 68, 68);
+}
+
+/* Enhance visibility for light mode */
+:root:not(.dark):not(.dark-mode):not([data-theme="dark"]) .time-difference-display.time-ahead,
+.light .time-difference-display.time-ahead,
+[data-theme="light"] .time-difference-display.time-ahead {
+    color: rgb(21, 128, 61);
+    /* Darker green for better contrast */
+}
+
+:root:not(.dark):not(.dark-mode):not([data-theme="dark"]) .time-difference-display.time-warning,
+.light .time-difference-display.time-warning,
+[data-theme="light"] .time-difference-display.time-warning {
+    color: rgb(180, 83, 9);
+    /* Darker yellow for better contrast */
+}
+
+:root:not(.dark):not(.dark-mode):not([data-theme="dark"]) .time-difference-display.time-behind,
+.light .time-difference-display.time-behind,
+[data-theme="light"] .time-difference-display.time-behind {
+    color: rgb(153, 27, 27);
+    /* Darker red for better contrast */
 }
 
 /* Float positioning */
 .float-left {
     order: -1;
-    /* Display before icon */
     margin-right: 3px;
     margin-left: 0;
 }
 
 .float-right {
     order: 1;
-    /* Display after icon */
     margin-left: 3px;
 }
 

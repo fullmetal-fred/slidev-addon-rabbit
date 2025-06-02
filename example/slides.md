@@ -23,9 +23,10 @@ mdc: true
 addons:
   - ./
 rabbit:
-  slideNum: true # Show current/total slide numbers next to a rabbit icon
   useSlideTimes: true # Enable time-based slide tracking
-  defaultSlideTime: 2.22 # Default time for slides without `slideTime` attribute, defaults to 2 minutes
+  defaultSlideTime: 2 # Default time for slides without `slideTime` attribute, defaults to 2 minutes
+  showSlideMarkers: true # Show tick marks along the track divider for each slide
+  debug: true # Enable debug logging to console (set to true for development)
 slideTime: 1
 ---
 

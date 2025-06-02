@@ -18,11 +18,16 @@ const MODE_KEY = `${STORAGE_KEY_PREFIX}mode`;
 const START_TIME_KEY = `${STORAGE_KEY_PREFIX}start-time`;
 
 export default {
+  emits: ['elapsed-time-update'],
   props: {
     current: Number,
     totalTime: {
       type: Number,
       default: 10
+    },
+    debugEnabled: {
+      type: Boolean,
+      default: false
     }
   },
   data() {
@@ -53,47 +58,41 @@ export default {
       const percent = this.positionPercent;
 
       if (this.isLatter) {
-        // In the latter half, use transform to align right edge with position
+        // In the latter half, start from right-edge alignment and adjust to center the icon
         return {
           left: percent + '%',
-          transform: 'translateX(-100%)',
+          transform: 'translateX(calc(-100% + 10px))', // Right-align container, then shift icon center to tick mark
           right: 'auto'
         };
       } else {
-        // In the first half, use normal left positioning
+        // In the first half, shift left from left-edge to center the icon
         return {
           left: percent + '%',
-          transform: 'none',
+          transform: 'translateX(-10px)', // Center the turtle icon (assuming ~20px icon width)
           right: 'auto'
         };
       }
     },
 
-    // Format elapsed time for display (hours:minutes:seconds if hours > 0, otherwise minutes:seconds)
+    // Format elapsed time for display (always use hh:mm:ss format)
     formattedElapsedTime() {
       const hours = Math.floor(this.elapsedTime / 3600);
       const minutes = Math.floor((this.elapsedTime % 3600) / 60);
       const seconds = Math.floor(this.elapsedTime % 60);
 
-      if (hours > 0) {
-        return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-      } else {
-        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-      }
+      // Always use hh:mm:ss format
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     },
-    // Format countdown for future start times (hours:minutes:seconds if hours > 0, otherwise minutes:seconds)
+    // Format countdown for future start times (always use hh:mm:ss format)
     formattedCountdown() {
-      if (this.countdown <= 0) return "0:00";
+      if (this.countdown <= 0) return "00:00:00";
 
       const hours = Math.floor(this.countdown / 3600);
       const minutes = Math.floor((this.countdown % 3600) / 60);
       const seconds = Math.floor(this.countdown % 60);
 
-      if (hours > 0) {
-        return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-      } else {
-        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-      }
+      // Always use hh:mm:ss format
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     }
   },
   watch: {
@@ -109,10 +108,10 @@ export default {
     // Initialize the turtle position on component mount
     this.initializeTurtle();
 
-    // Set up the interval to update position
+    // Set up the interval to update position - once per second for calmer logging
     this.intervalId = setInterval(() => {
       this.updateTurtlePosition();
-    }, 100); // update per 100ms
+    }, 1000); // update per 1000ms (1 second) instead of 100ms
   },
   beforeUnmount() {
     // Clean up interval when component unmounts
@@ -166,14 +165,17 @@ export default {
         progressPercent = 100;
       }
 
-      // Only log if position has changed significantly (avoid spam)
+      // Only log if position has changed significantly (avoid spam) and debug is enabled
       const roundedPercent = Math.round(progressPercent * 10) / 10; // Round to 1 decimal place
-      if (Math.abs(roundedPercent - this.lastLoggedPosition) >= 0.1) {
+      if (this.debugEnabled && Math.abs(roundedPercent - this.lastLoggedPosition) >= 0.1) {
         console.log(`[Turtle] Position updated: ${this.lastLoggedPosition}% -> ${roundedPercent}%`);
         this.lastLoggedPosition = roundedPercent;
       }
 
       this.positionPercent = progressPercent;
+
+      // Emit elapsed time updates to parent component
+      this.$emit('elapsed-time-update', this.elapsedTime);
     }
   }
 };
