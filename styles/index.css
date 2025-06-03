@@ -304,7 +304,7 @@
 
 /* Special positioning for start tick to prevent clipping */
 .slide-tick.start-tick {
-    transform: translateX(50%);
+    transform: translateX(0%);
     /* Use normal centering like other ticks now that container has padding */
 }
 
