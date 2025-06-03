@@ -9,17 +9,13 @@
 .settings-gear-container {
     position: absolute;
     top: -20px;
-    /* Position above the race track container */
     right: 0;
     width: 100px;
-    /* Match finish area width */
     height: 20px;
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    /* Position gear to far right */
     padding-right: 10px;
-    /* Add some padding from the edge */
     z-index: 200;
 }
 
@@ -106,11 +102,9 @@
     position: relative;
     display: flex;
     flex-direction: row;
-    /* Changed from column to row for two-column layout */
     justify-content: space-between;
     align-items: center;
     gap: 3px;
-    /* Increased gap for better separation */
     padding: 4px;
     box-sizing: border-box;
 }
@@ -121,11 +115,8 @@
     align-items: center;
     justify-content: center;
     font-size: 1.2rem;
-    /* Adjust size as needed */
     min-width: 20px;
-    /* Ensure consistent width */
     flex-shrink: 0;
-    /* Prevent shrinking */
 }
 
 /* Timer labels container */
@@ -134,9 +125,7 @@
     flex-direction: column;
     gap: 1px;
     flex: 1;
-    /* Take remaining space */
     min-width: 0;
-    /* Allow shrinking if needed */
 }
 
 .timer-with-label {
@@ -146,7 +135,7 @@
     width: 100%;
 }
 
-/* Timer symbol inline styling - for symbols inside the counter chiclets */
+/* Timer symbol styling */
 .timer-symbol-inline {
     font-size: 0.5rem;
     font-weight: bold;
@@ -197,7 +186,6 @@
     margin: 0px;
     position: relative;
     z-index: 95;
-    /* Lowest layer - the divider line itself */
 }
 
 /* Dark mode overrides for lane divider */
@@ -214,7 +202,7 @@
     background-color: rgba(0, 0, 0, 0.3);
 }
 
-/* Slide tick marks container */
+/* Slide tick marks and labels */
 .slide-tick-marks {
     position: absolute;
     top: 0;
@@ -227,7 +215,6 @@
     box-sizing: border-box;
 }
 
-/* Slide time labels container */
 .slide-time-labels {
     position: absolute;
     top: 0;
@@ -237,31 +224,20 @@
     pointer-events: none;
 }
 
-/* Individual slide time labels */
 .slide-time-label {
     position: absolute;
     top: 50%;
-    /* Center vertically on the divider line */
     font-size: 0.4rem;
-    /* Reduced from 0.5rem for better fit */
     font-weight: 600;
-    /* Slightly bolder for better readability at smaller size */
     color: var(--slidev-color-text, inherit);
-    /* Use normal text color */
     background-color: var(--slidev-theme-background, #ffffff);
-    /* Match slide background at 100% opacity */
     border-radius: 0.2rem;
-    /* Slightly smaller radius */
     padding: 0.05rem 0.2rem;
-    /* Reduced padding for compact display */
     white-space: nowrap;
     transform: translate(-50%, -50%);
-    /* Center both horizontally and vertically */
     z-index: 96;
-    /* Above line, below ticks */
     transition: color 0.2s ease, background-color 0.2s ease;
     min-width: 1rem;
-    /* Ensure minimum width for very small numbers */
     text-align: center;
 }
 
@@ -270,9 +246,7 @@
 .dark-mode .slide-time-label,
 [data-theme="dark"] .slide-time-label {
     color: rgba(255, 255, 255, 0.9);
-    /* Light text for dark mode */
     background-color: var(--slidev-theme-background, #1a1a1a);
-    /* Dark background at 100% opacity */
 }
 
 /* Light mode overrides for slide time labels */
@@ -280,38 +254,27 @@
 .light .slide-time-label,
 [data-theme="light"] .slide-time-label {
     color: rgba(0, 0, 0, 0.9);
-    /* Dark text for light mode */
     background-color: var(--slidev-theme-background, #ffffff);
-    /* Light background at 100% opacity */
 }
 
-/* Individual slide tick marks - adaptive colors */
+/* Individual slide tick marks */
 .slide-tick {
     position: absolute;
     top: -3px;
-    /* Extended further above the line */
     width: 1px;
-    /* Reduced from 2px for thinner appearance */
     height: 7px;
-    /* Increased from 5px for longer appearance */
     background-color: var(--slidev-color-border, rgba(255, 255, 255, 0.3));
-    /* Match divider line color */
     transform: translateX(-50%);
     z-index: 97;
-    /* Above labels, below animals */
     transition: background-color 0.2s ease, height 0.2s ease;
 }
 
-/* Special positioning for start tick to prevent clipping */
 .slide-tick.start-tick {
     transform: translateX(0%);
-    /* Use normal centering like other ticks now that container has padding */
 }
 
-/* Final tick mark - now just a normal tick aligned to right edge */
 .slide-tick.final-tick {
     transform: translateX(-100%);
-    /* Align to right edge instead of centering */
 }
 
 /* Dark mode overrides for slide ticks */
@@ -319,7 +282,6 @@
 .dark-mode .slide-tick,
 [data-theme="dark"] .slide-tick {
     background-color: rgba(255, 255, 255, 0.3);
-    /* Match divider line in dark mode */
 }
 
 /* Light mode overrides for slide ticks */
@@ -327,10 +289,9 @@
 .light .slide-tick,
 [data-theme="light"] .slide-tick {
     background-color: rgba(0, 0, 0, 0.3);
-    /* Match divider line in light mode */
 }
 
-/* Hover effect for tick marks - adaptive colors */
+/* Hover effect for tick marks */
 .slide-tick:hover {
     height: 7px;
     top: -3px;
@@ -340,14 +301,12 @@
 .dark-mode .slide-tick:hover,
 [data-theme="dark"] .slide-tick:hover {
     background-color: rgba(255, 255, 255, 0.6);
-    /* Slightly brighter on hover */
 }
 
 :root:not(.dark):not(.dark-mode):not([data-theme="dark"]) .slide-tick:hover,
 .light .slide-tick:hover,
 [data-theme="light"] .slide-tick:hover {
     background-color: rgba(0, 0, 0, 0.6);
-    /* Slightly darker on hover */
 }
 
 /* Item styling within lanes */
@@ -358,7 +317,6 @@
     display: flex;
     align-items: center;
     z-index: 99;
-    /* Highest layer - rabbit and turtle */
 }
 
 /* Icon styling */
@@ -370,7 +328,7 @@
     margin-right: 2px;
 }
 
-/* Counter display styling - adaptive backgrounds */
+/* Counter display styling */
 .counter-display {
     padding: 0.15rem 0.15rem;
     font-size: 0.65rem;
@@ -404,7 +362,7 @@
     color: rgba(0, 0, 0, 0.8);
 }
 
-/* Time difference display styling - keep original colors but adapt text */
+/* Time difference display styling */
 .time-difference-display {
     padding: 0.15rem 0.15rem;
     font-size: 0.65rem;
@@ -421,7 +379,7 @@
     transition: background-color 0.3s ease, color 0.2s ease;
 }
 
-/* Time difference color states - these work well in both modes */
+/* Time difference color states */
 .time-difference-display.time-ahead {
     background-color: rgba(34, 197, 94, 0.3);
     color: rgb(34, 197, 94);
@@ -437,26 +395,23 @@
     color: rgb(239, 68, 68);
 }
 
-/* Enhance visibility for light mode */
+/* Enhanced visibility for light mode */
 :root:not(.dark):not(.dark-mode):not([data-theme="dark"]) .time-difference-display.time-ahead,
 .light .time-difference-display.time-ahead,
 [data-theme="light"] .time-difference-display.time-ahead {
     color: rgb(21, 128, 61);
-    /* Darker green for better contrast */
 }
 
 :root:not(.dark):not(.dark-mode):not([data-theme="dark"]) .time-difference-display.time-warning,
 .light .time-difference-display.time-warning,
 [data-theme="light"] .time-difference-display.time-warning {
     color: rgb(180, 83, 9);
-    /* Darker yellow for better contrast */
 }
 
 :root:not(.dark):not(.dark-mode):not([data-theme="dark"]) .time-difference-display.time-behind,
 .light .time-difference-display.time-behind,
 [data-theme="light"] .time-difference-display.time-behind {
     color: rgb(153, 27, 27);
-    /* Darker red for better contrast */
 }
 
 /* Float positioning */
@@ -471,7 +426,7 @@
     margin-left: 3px;
 }
 
-/* Position variations - keep these for compatibility */
+/* Position variations */
 .counter-display.top-left {
     position: absolute;
     top: -1.5rem;
@@ -491,7 +446,6 @@
     transform: translateX(-50%);
 }
 
-/* Custom alignments for screen edge cases */
 .counter-display.left-edge {
     left: 0;
     transform: none;
@@ -503,64 +457,21 @@
     transform: none;
 }
 
-/* Total time display styling */
-.total-time-display {
-    z-index: 101;
-    width: 100%;
-    /* Fill the finish area width */
-    height: auto;
-    /* Use minimal height instead of default 70% */
-    padding: 0.1rem 0.1rem;
-    /* Reduce horizontal padding to fit in 120px */
-    margin-left: 0;
-    /* Remove left margin since we're filling the space */
-    min-width: unset;
-    /* Remove min-width constraint to allow fitting in small space */
-    font-size: 0.4rem;
-    /* Smaller font to fit better in expanded finish area */
-    box-sizing: border-box;
-    /* Include padding in width calculation */
-}
-
-/* Countdown display styling */
-.countdown-display {
-    z-index: 101;
-    width: 100%;
-    /* Fill the finish area width */
-    height: auto;
-    /* Use minimal height instead of default 70% */
-    padding: 0.1rem 0.1rem;
-    /* Reduce horizontal padding to fit in 120px */
-    margin-left: 0;
-    /* Remove left margin since we're filling the space */
-    min-width: unset;
-    /* Remove min-width constraint to allow fitting in small space */
-    font-size: 0.4rem;
-    /* Smaller font to fit better in expanded finish area */
-    box-sizing: border-box;
-    /* Include padding in width calculation */
-}
-
-/* Estimated time display styling */
+/* Timer display styling - shared styles for all timer displays */
+.total-time-display,
+.countdown-display,
 .estimated-time-display {
     z-index: 101;
     width: 100%;
-    /* Fill the finish area width */
     height: auto;
-    /* Use minimal height instead of default 70% */
     padding: 0.1rem 0.1rem;
-    /* Reduce horizontal padding to fit in 120px */
     margin-left: 0;
-    /* Remove left margin since we're filling the space */
     min-width: unset;
-    /* Remove min-width constraint to allow fitting in small space */
     font-size: 0.4rem;
-    /* Smaller font to fit better in expanded finish area */
     box-sizing: border-box;
-    /* Include padding in width calculation */
 }
 
-/* Configuration Dialog - Light Mode (Default) */
+/* Configuration Dialog */
 .config-dialog {
     position: fixed;
     top: 50%;
@@ -576,7 +487,6 @@
     transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Configuration Dialog - Dark Mode */
 .config-dialog.dark-mode {
     background: #2d3748;
     color: #f7fafc;
@@ -599,12 +509,14 @@
     font-size: 18px;
 }
 
+/* Mode selector - fixed checkbox positioning */
 .mode-selector {
     margin-bottom: 16px;
 }
 
 .mode-selector label {
-    display: block;
+    display: flex;
+    align-items: center;
     margin-bottom: 8px;
     cursor: pointer;
     transition: color 0.2s ease;
@@ -612,8 +524,32 @@
 
 .mode-selector input {
     margin-right: 8px;
+    flex-shrink: 0;
 }
 
+/* Mode selector - fixed checkbox positioning with higher specificity */
+.config-dialog .mode-selector {
+    margin-bottom: 16px;
+}
+
+.config-dialog .mode-selector label {
+    display: flex !important;
+    align-items: center;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.config-dialog .mode-selector input[type="checkbox"],
+.config-dialog .mode-selector input[type="radio"] {
+    margin-right: 8px;
+    margin-left: 0;
+    flex-shrink: 0;
+    width: auto;
+    min-width: auto;
+}
+
+/* Time inputs section */
 .time-inputs {
     margin-bottom: 16px;
 }
@@ -623,7 +559,17 @@
     font-size: 14px;
 }
 
-/* Input styling for both light and dark modes */
+.target-completion-section {
+    margin-top: 8px;
+    padding-left: 20px;
+    border-left: 2px solid #e2e8f0;
+}
+
+.dark-mode .target-completion-section {
+    border-left-color: #4a5568;
+}
+
+/* Input styling */
 .time-inputs input {
     width: 100%;
     padding: 8px;
@@ -634,6 +580,12 @@
     transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
 }
 
+.time-inputs input:focus {
+    border-color: #4a8fe7;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(74, 143, 231, 0.2);
+}
+
 .dark-mode .time-inputs input {
     background: #4a5568;
     border-color: #718096;
@@ -642,23 +594,33 @@
 
 .dark-mode .time-inputs input:focus {
     border-color: #63b3ed;
-    outline: none;
     box-shadow: 0 0 0 2px rgba(99, 179, 237, 0.2);
 }
 
-.time-inputs input:focus {
-    border-color: #4a8fe7;
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(74, 143, 231, 0.2);
+/* Target completion time section - also fix checkbox positioning */
+.config-dialog .time-inputs label {
+    display: flex !important;
+    align-items: center;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: color 0.2s ease;
 }
 
+.config-dialog .time-inputs input[type="checkbox"] {
+    margin-right: 8px;
+    margin-left: 0;
+    flex-shrink: 0;
+    width: auto;
+    min-width: auto;
+}
+
+/* Dialog buttons */
 .dialog-buttons {
     display: flex;
     gap: 8px;
     justify-content: flex-end;
 }
 
-/* Button styling for both light and dark modes */
 .dialog-buttons button {
     padding: 6px 12px;
     border-radius: 4px;
