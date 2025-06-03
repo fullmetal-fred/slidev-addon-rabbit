@@ -80,16 +80,21 @@ export default {
       }
     },
 
-    // Format elapsed time for display
+    // Format elapsed time / total time for display
     formattedElapsedTime() {
-      return this.formatTime(this.elapsedTime);
+      const elapsedTimeFormatted = this.formatTime(this.elapsedTime);
+      const totalTimeFormatted = this.formatTime(this.totalTime * 60); // Convert minutes to seconds
+      return `${elapsedTimeFormatted} / ${totalTimeFormatted}`;
     },
+
     // Format countdown for future start times
     formattedCountdown() {
       if (this.countdown <= 0) {
         return "00:00:00";
       }
-      return this.formatTime(this.countdown);
+      const countdownFormatted = this.formatTime(this.countdown);
+      const totalTimeFormatted = this.formatTime(this.totalTime * 60); // Convert minutes to seconds
+      return `-${countdownFormatted} / ${totalTimeFormatted}`;
     }
   },
   watch: {

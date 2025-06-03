@@ -6,26 +6,35 @@
         </div>
 
         <div class="timer-labels">
+
             <!-- Lap timer with delta symbol inside -->
-            <div class="timer-with-label">
+            <!-- <div class="timer-with-label">
                 <div class="time-difference-display countdown-display" :class="lapTimerClass">
                     <span class="timer-symbol-inline">Δ</span>
                     {{ formattedLapTimer }}
                 </div>
+            </div> -->
+
+            <!-- Target completion time banking display (only show if target is set) -->
+            <div v-if="hasTargetCompletion" class="timer-with-label">
+                <div class="time-difference-display countdown-display" :class="targetCompletionClass">
+                    <span class="timer-symbol-inline">🏦</span>
+                    {{ formattedTargetCompletion }}
+                </div>
             </div>
 
-            <!-- Total time with sum symbol inside -->
-            <div class="timer-with-label">
-                <div class="counter-display total-time-display">
-                    <span class="timer-symbol-inline">Σ</span>
-                    {{ formattedTotalTime }}
+            <!-- Target completion time display (only show if target is set) -->
+            <div v-if="hasTargetCompletion" class="timer-with-label">
+                <div class="counter-display target-time-display">
+                    <span class="timer-symbol-inline">🎯</span>
+                    {{ formattedTargetTime }}
                 </div>
             </div>
 
             <!-- Estimated finish time with ETA text inside -->
             <div class="timer-with-label">
-                <div class="counter-display estimated-time-display" :class="estimatedTimeClass">
-                    <span class="timer-symbol-inline">ETA</span>
+                <div class="time-difference-display estimated-time-display" :class="estimatedTimeClass">
+                    <span class="timer-symbol-inline">⏰</span>
                     {{ formattedEstimatedFinishTime }}
                 </div>
             </div>
@@ -71,9 +80,11 @@ export default {
         const STORAGE_KEY_PREFIX = 'slidev-turtle-';
         const MODE_KEY = `${STORAGE_KEY_PREFIX}mode`;
         const START_TIME_KEY = `${STORAGE_KEY_PREFIX}start-time`;
+        const TARGET_COMPLETION_KEY = `${STORAGE_KEY_PREFIX}target-completion`;
 
         const storedMode = localStorage.getItem(MODE_KEY) || 'incremental';
         const storedStartTime = localStorage.getItem(START_TIME_KEY);
+        const storedTargetCompletion = localStorage.getItem(TARGET_COMPLETION_KEY);
 
         return {
             slideStartTime: Date.now(),
@@ -82,6 +93,7 @@ export default {
             // Timer configuration (same as Turtle)
             timerMode: storedMode,
             presentationStartTime: storedStartTime ? parseInt(storedStartTime) : null,
+            targetCompletionTime: storedTargetCompletion ? parseInt(storedTargetCompletion) : null,
             isFutureStart: false,
             // Shared timer registry for synchronization
             sharedTimerRegistry: window.__slidevRabbitSharedTimer = window.__slidevRabbitSharedTimer || {
@@ -92,6 +104,11 @@ export default {
         }
     },
     computed: {
+        // Check if target completion time is set
+        hasTargetCompletion() {
+            return this.targetCompletionTime !== null;
+        },
+
         // Check if presentation has started yet
         hasPresentationStarted() {
             if (this.timerMode === 'wallclock' && this.presentationStartTime) {
@@ -112,6 +129,99 @@ export default {
             }
             // In incremental mode, presentation starts immediately
             return true;
+        },
+
+        // Calculate target completion time banking (time difference from target)
+        targetCompletionDifferenceMinutes() {
+            if (!this.hasTargetCompletion) {
+                return 0;
+            }
+
+            if (!this.hasPresentationStarted) {
+                // Before presentation starts: Compare total presentation length to available time window
+                if (!this.presentationStartTime) {
+                    // If no start time set, compare against current time + total presentation time
+                    const now = Date.now();
+                    const plannedFinishTime = now + (this.totalTimeMinutes * 60 * 1000);
+                    const differenceMilliseconds = this.targetCompletionTime - plannedFinishTime;
+                    return differenceMilliseconds / (60 * 1000);
+                } else {
+                    // Compare planned finish time (start + total time) against target
+                    const plannedFinishTime = this.presentationStartTime + (this.totalTimeMinutes * 60 * 1000);
+                    const differenceMilliseconds = this.targetCompletionTime - plannedFinishTime;
+                    return differenceMilliseconds / (60 * 1000);
+                }
+            } else {
+                // During presentation: Calculate estimated finish time based on current progress
+                const etaTimestamp = this.estimatedFinishTimeMinutes;
+                const differenceMilliseconds = this.targetCompletionTime - etaTimestamp;
+                const differenceMinutes = differenceMilliseconds / (60 * 1000);
+
+                if (this.debugEnabled) {
+                    console.log('[FinishArea] Target completion calculation:', {
+                        targetCompletionTime: new Date(this.targetCompletionTime).toLocaleTimeString(),
+                        etaTimestamp: new Date(etaTimestamp).toLocaleTimeString(),
+                        differenceMinutes: differenceMinutes,
+                        calculation: `${new Date(this.targetCompletionTime).toLocaleTimeString()} - ${new Date(etaTimestamp).toLocaleTimeString()} = ${differenceMinutes.toFixed(2)}m`
+                    });
+                }
+
+                return differenceMinutes;
+            }
+        },
+
+        // Format target completion time (always shows the actual target time)
+        formattedTargetTime() {
+            if (!this.hasTargetCompletion) {
+                return '';
+            }
+
+            const targetDate = new Date(this.targetCompletionTime);
+            const hours = targetDate.getHours();
+            const minutes = targetDate.getMinutes();
+            const seconds = targetDate.getSeconds();
+
+            if (this.use12HourFormat) {
+                const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+                const ampm = hours >= 12 ? 'PM' : 'AM';
+                return `${displayHours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} ${ampm}`;
+            } else {
+                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+        },
+
+        // Format target completion time banking for display (always shows difference)
+        formattedTargetCompletion() {
+            if (!this.hasTargetCompletion) {
+                return '';
+            }
+
+            // Always show time banking (difference from target)
+            const diffMinutes = Math.abs(this.targetCompletionDifferenceMinutes);
+            const hours = Math.floor(diffMinutes / 60);
+            const minutes = Math.floor(diffMinutes % 60);
+            const seconds = Math.floor((diffMinutes % 1) * 60);
+
+            const sign = this.targetCompletionDifferenceMinutes >= 0 ? '+' : '-';
+
+            return `${sign}${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        },
+
+        // CSS class for target completion styling
+        targetCompletionClass() {
+            if (!this.hasTargetCompletion) {
+                return '';
+            }
+
+            const diffMinutes = this.targetCompletionDifferenceMinutes;
+
+            if (diffMinutes < -5) {
+                return 'time-behind'; // Red when more than 5 minutes over target
+            } else if (diffMinutes < 0) {
+                return 'time-warning'; // Yellow when slightly over target
+            } else {
+                return 'time-ahead'; // Green when on or under target
+            }
         },
 
         // Format total time for display
@@ -275,18 +385,32 @@ export default {
         // CSS class for estimated finish time styling
         estimatedTimeClass() {
             const etaTimestamp = this.estimatedFinishTimeMinutes; // This is now a timestamp
-            const plannedFinishTimestamp = this.presentationStartTime + (this.totalTimeMinutes * 60 * 1000);
 
-            // Compare ETA with planned finish time
-            const deltaMilliseconds = etaTimestamp - plannedFinishTimestamp;
-            const deltaMinutes = deltaMilliseconds / (60 * 1000);
+            // If we have a target completion time, use that for comparison
+            if (this.hasTargetCompletion) {
+                const deltaMilliseconds = etaTimestamp - this.targetCompletionTime;
+                const deltaMinutes = deltaMilliseconds / (60 * 1000);
 
-            if (deltaMinutes > this.totalTimeMinutes * 0.1) { // More than 10% over planned time
-                return 'time-behind'; // Red when significantly over planned time
-            } else if (deltaMinutes > 0) {
-                return 'time-warning'; // Yellow when slightly over planned time
+                if (deltaMinutes > 10) { // More than 10 minutes over target
+                    return 'time-behind'; // Red when significantly over target
+                } else if (deltaMinutes > 0) {
+                    return 'time-warning'; // Yellow when slightly over target
+                } else {
+                    return 'time-ahead'; // Green when on or under target
+                }
             } else {
-                return 'time-ahead'; // Green when on or under planned time
+                // Fallback: compare with planned finish time
+                const plannedFinishTimestamp = this.presentationStartTime + (this.totalTimeMinutes * 60 * 1000);
+                const deltaMilliseconds = etaTimestamp - plannedFinishTimestamp;
+                const deltaMinutes = deltaMilliseconds / (60 * 1000);
+
+                if (deltaMinutes > this.totalTimeMinutes * 0.1) { // More than 10% over planned time
+                    return 'time-behind'; // Red when significantly over planned time
+                } else if (deltaMinutes > 0) {
+                    return 'time-warning'; // Yellow when slightly over planned time
+                } else {
+                    return 'time-ahead'; // Green when on or under planned time
+                }
             }
         }
     },
