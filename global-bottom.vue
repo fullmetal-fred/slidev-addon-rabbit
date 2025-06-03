@@ -1,6 +1,6 @@
 <template>
   <!-- when exporting, this footer isn't exported -->
-  <footer v-if="$route.query.print !== null" class="rablte-container">
+  <footer v-if="$slidev.nav.isPresenter" class="rablte-container">
     <!-- Race track container with proper spacing - hover detection covers entire bottom bar including gear -->
     <div class="race-track" @mouseenter="showSettingsGear = true" @mouseleave="showSettingsGear = false">
       <!-- Settings gear positioned above the finish area counters but inside the hover container -->
