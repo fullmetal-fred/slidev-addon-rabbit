@@ -30,6 +30,7 @@ rabbit:
   showSlideTimeLabels: false # Show slide time labels on the track divider
   showSlideCountdown: true # Show individual slide countdown timer on rabbit
   pauseSlideCountdownUntilStart: true # Pause slide countdown until presentation starts in wall clock mode
+  use12HourFormat: true # Use 12-hour time format with AM/PM instead of 24-hour format
 slideTime: 1
 ---
 

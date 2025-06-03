@@ -272,26 +272,27 @@ const slideRemainingSeconds = computed(() => {
 
 // Format slide countdown for display
 const formattedSlideCountdown = computed(() => {
+  // Helper function to format time based on 12/24 hour preference
+  const formatTime = (totalSeconds) => {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+
+    // 24-hour format
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
   // If presentation hasn't started, show full slide time as countdown
   if (isFutureStart.value) {
     const slideTimeSeconds = currentSlideTimeMinutes.value * 60;
-    const hours = Math.floor(slideTimeSeconds / 3600);
-    const minutes = Math.floor((slideTimeSeconds % 3600) / 60);
-    const seconds = Math.floor(slideTimeSeconds % 60);
-
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    return formatTime(slideTimeSeconds);
   }
 
   // Normal countdown logic
   const remainingSeconds = Math.abs(slideRemainingSeconds.value);
-  const hours = Math.floor(remainingSeconds / 3600);
-  const minutes = Math.floor((remainingSeconds % 3600) / 60);
-  const seconds = Math.floor(remainingSeconds % 60);
-
   const sign = slideRemainingSeconds.value < 0 ? '-' : '';
 
-  // Always use hh:mm:ss format
-  return `${sign}${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  return `${sign}${formatTime(remainingSeconds)}`;
 });
 
 // CSS class for slide countdown styling

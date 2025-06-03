@@ -78,6 +78,7 @@ rabbit:
   showSlideMarkers: false  # Show tick marks along the track divider for each slide (default: false)
   showSlideCountdown: false  # Show individual slide countdown timer on rabbit (default: false)
   pauseSlideCountdownUntilStart: true  # Pause slide countdown until presentation starts in wall clock mode (default: true)
+  use12HourFormat: false  # Use 12-hour time format with AM/PM instead of 24-hour format (default: false)
   debug: false  # Enable debug logging to console (default: false)
 ...
 ---

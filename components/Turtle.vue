@@ -80,25 +80,16 @@ export default {
       }
     },
 
-    // Format elapsed time for display (always use hh:mm:ss format)
+    // Format elapsed time for display
     formattedElapsedTime() {
-      const hours = Math.floor(this.elapsedTime / 3600);
-      const minutes = Math.floor((this.elapsedTime % 3600) / 60);
-      const seconds = Math.floor(this.elapsedTime % 60);
-
-      // Always use hh:mm:ss format
-      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      return this.formatTime(this.elapsedTime);
     },
-    // Format countdown for future start times (always use hh:mm:ss format)
+    // Format countdown for future start times
     formattedCountdown() {
-      if (this.countdown <= 0) return "00:00:00";
-
-      const hours = Math.floor(this.countdown / 3600);
-      const minutes = Math.floor((this.countdown % 3600) / 60);
-      const seconds = Math.floor(this.countdown % 60);
-
-      // Always use hh:mm:ss format
-      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      if (this.countdown <= 0) {
+        return "00:00:00";
+      }
+      return this.formatTime(this.countdown);
     }
   },
   watch: {
@@ -145,6 +136,16 @@ export default {
     }
   },
   methods: {
+    // Helper method to format time based on 12/24 hour preference
+    formatTime(totalSeconds) {
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = Math.floor(totalSeconds % 60);
+
+      // 24-hour format
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    },
+
     initializeTurtle() {
       if (this.timerMode === 'incremental') {
         // In incremental mode, start counting from the stored start time or now

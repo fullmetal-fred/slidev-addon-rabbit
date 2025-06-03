@@ -1,15 +1,23 @@
 <template>
   <!-- when exporting, this footer isn't exported -->
   <footer v-if="$route.query.print !== null" class="rablte-container">
-    <!-- Race track container with proper spacing -->
-    <div class="race-track">
+    <!-- Race track container with proper spacing - hover detection covers entire bottom bar including gear -->
+    <div class="race-track" @mouseenter="showSettingsGear = true" @mouseleave="showSettingsGear = false">
+      <!-- Settings gear positioned above the finish area counters but inside the hover container -->
+      <div class="settings-gear-container">
+        <div class="settings-gear-hover" :class="{ visible: showSettingsGear }">
+          <emojione-monotone-gear class="gear-icon" @click="openConfigDialog" />
+        </div>
+      </div>
+
       <!-- Lanes container with spacing for first/last tick visibility -->
       <div class="lanes">
         <!-- Rabbit lane -->
         <div class="rabbit-lane">
           <Rabbit :current="$slidev.nav.currentPage" :slide-times="slideTimes"
             :use-slide-times-enabled="useSlideTimesEnabled" :turtle-elapsed-time="turtleElapsedTime"
-            :total-time-minutes="totalTimeMinutes" :debug-enabled="debugEnabled" />
+            :total-time-minutes="totalTimeMinutes" :debug-enabled="debugEnabled"
+            :use-12-hour-format="use12HourFormat" />
         </div>
 
         <!-- Divider line with optional tick marks and time labels -->
@@ -35,22 +43,31 @@
         <!-- Turtle lane -->
         <div class="turtle-lane">
           <Turtle :current="$slidev.nav.currentPage" :total-time="totalTimeMinutes" :debug-enabled="debugEnabled"
-            @elapsed-time-update="handleTurtleTimeUpdate" />
+            :use-12-hour-format="use12HourFormat" @elapsed-time-update="handleTurtleTimeUpdate" />
         </div>
       </div>
 
-      <!-- Finish area -->
-      <div class="finish-area">
-        <Flag :slide-times="slideTimes" :total-time-minutes="totalTimeMinutes" :turtle-elapsed-time="turtleElapsedTime"
-          :current="$slidev.nav.currentPage" :use-slide-times-enabled="useSlideTimesEnabled"
-          :debug-enabled="debugEnabled" />
-      </div>
+      <!-- Finish area component -->
+      <FinishArea :slide-times="slideTimes" :total-time-minutes="totalTimeMinutes"
+        :turtle-elapsed-time="turtleElapsedTime" :current-slide="$slidev.nav.currentPage"
+        :use-slide-times-enabled="useSlideTimesEnabled" :debug-enabled="debugEnabled"
+        :use12-hour-format="use12HourFormat" />
     </div>
+
+    <!-- Settings Dialog Component -->
+    <SettingsDialog :show="showDialog" @close="closeDialog" @settings-updated="handleSettingsUpdated" />
   </footer>
 </template>
 
 <script>
+import FinishArea from './components/FinishArea.vue'
+import SettingsDialog from './components/SettingsDialog.vue'
+
 export default {
+  components: {
+    FinishArea,
+    SettingsDialog
+  },
   data() {
     const useSlideTimesEnabled = this.$slidev.configs?.rabbit?.useSlideTimes ?? false;
     const slideTimes = this.getSlideTimes();
@@ -63,8 +80,7 @@ export default {
     const slideMarkerPositions = this.calculateSlideMarkerPositions(slideTimes);
     const slideTimeLabels = this.calculateSlideTimeLabels(slideTimes, slideMarkerPositions);
     const debugEnabled = this.$slidev.configs?.rabbit?.debug ?? false;
-
-    const lastTickPosition = slideMarkerPositions.length > 0 ? slideMarkerPositions[slideMarkerPositions.length - 1] : 100;
+    const use12HourFormat = this.$slidev.configs?.rabbit?.use12HourFormat ?? false;
 
     if (debugEnabled) {
       console.log('[RabbitDebug] Configuration:', {
@@ -77,7 +93,7 @@ export default {
         showSlideTimeLabels,
         slideMarkerPositions,
         slideTimeLabels,
-        lastTickPosition
+        use12HourFormat
       });
     }
 
@@ -92,10 +108,29 @@ export default {
       slideTimeLabels,
       turtleElapsedTime: 0,
       debugEnabled,
-      lastTickPosition
+      use12HourFormat,
+      // Simplified state management
+      showDialog: false,
+      showSettingsGear: false
     }
   },
   methods: {
+    // Configuration dialog methods
+    openConfigDialog() {
+      this.showDialog = true;
+    },
+
+    closeDialog() {
+      this.showDialog = false;
+    },
+
+    handleSettingsUpdated() {
+      // Handle any necessary updates when settings change
+      if (this.debugEnabled) {
+        console.log('[GlobalBottom] Settings updated');
+      }
+    },
+
     getSlideTimes() {
       // Get all slides and extract time from frontmatter
       const slides = this.$slidev.nav.slides;
@@ -111,7 +146,6 @@ export default {
       }
 
       const times = slides.map((slide, index) => {
-        // Priority: 1. slideTime frontmatter, 2. defaultSlideTime config, 3. hardcoded 2 minutes
         const slideTime = slide.meta.slide.frontmatter?.slideTime;
         const time = slideTime !== undefined ? parseFloat(slideTime) : defaultSlideTime;
         const finalTime = !isNaN(time) && time > 0 ? time : defaultSlideTime;
@@ -141,7 +175,6 @@ export default {
       return times;
     },
     calculateTotalTime(slideTimes, defaultTime) {
-      // If no slide times are specified, fallback to query time parameter
       const totalFromSlides = slideTimes.reduce((sum, time) => sum + time, 0);
       return totalFromSlides > 0 ? totalFromSlides : defaultTime;
     },
@@ -150,7 +183,6 @@ export default {
       const totalSlides = this.$slidev.nav.total;
 
       if (useSlideTimesEnabled && slideTimes.length > 0) {
-        // Time-based positioning: position markers based on cumulative time
         const totalTime = slideTimes.reduce((sum, time) => sum + time, 0);
         let accumulatedTime = 0;
 
@@ -163,7 +195,6 @@ export default {
           return position;
         });
       } else {
-        // Slide-count-based positioning: evenly space markers
         const positions = [];
         for (let i = 1; i <= totalSlides; i++) {
           const position = (i / totalSlides) * 100;
@@ -184,25 +215,19 @@ export default {
         let position;
 
         if (index === 0) {
-          // First segment: from 0% to first tick mark
           position = slideMarkerPositions[0] / 2;
         } else {
-          // Subsequent segments: from previous tick mark to current tick mark
           const prevPosition = slideMarkerPositions[index - 1];
           const currentPosition = slideMarkerPositions[index];
           position = prevPosition + (currentPosition - prevPosition) / 2;
         }
 
-        // Format time display - handle fractional minutes
         let display;
         if (time % 1 === 0) {
-          // Whole numbers: show as integer
           display = `${Math.floor(time)}`;
         } else if (time < 1) {
-          // Less than 1 minute: show as decimal
           display = time.toFixed(2).replace(/\.?0+$/, '');
         } else {
-          // Mixed: show with minimal decimal places
           display = time.toFixed(1).replace(/\.0$/, '');
         }
 
