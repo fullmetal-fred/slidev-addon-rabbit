@@ -221,7 +221,7 @@ export default {
         // Calculate estimated finish time based on current pace
         estimatedFinishTimeMinutes() {
             // Calculate the estimated finish time as a wall-clock time
-            // ETA = Presentation start time + sum of slide times + delta
+            // ETA = Presentation start time + sum of slide times - delta
 
             if (!this.presentationStartTime) {
                 // Fallback: if no start time, show current time + remaining time
@@ -234,8 +234,10 @@ export default {
             // Calculate the delta (difference between rabbit and turtle)
             const deltaMinutes = this.timeDifferenceMinutes;
 
-            // ETA = Start time + Total planned time + Delta
-            const etaTimestamp = this.presentationStartTime + (this.totalTimeMinutes * 60 * 1000) + (deltaMinutes * 60 * 1000);
+            // ETA = Start time + Total planned time - Delta
+            // When delta is negative (behind), subtracting a negative pushes ETA later
+            // When delta is positive (ahead), subtracting a positive makes ETA earlier
+            const etaTimestamp = this.presentationStartTime + (this.totalTimeMinutes * 60 * 1000) - (deltaMinutes * 60 * 1000);
 
             if (this.debugEnabled) {
                 console.log('[FinishArea] ETA calculation:', {
@@ -243,7 +245,7 @@ export default {
                     totalTimeMinutes: this.totalTimeMinutes,
                     deltaMinutes: deltaMinutes,
                     etaTimestamp: new Date(etaTimestamp).toLocaleTimeString(),
-                    calculation: `${new Date(this.presentationStartTime).toLocaleTimeString()} + ${this.totalTimeMinutes}m + ${deltaMinutes.toFixed(2)}m = ${new Date(etaTimestamp).toLocaleTimeString()}`
+                    calculation: `${new Date(this.presentationStartTime).toLocaleTimeString()} + ${this.totalTimeMinutes}m - ${deltaMinutes.toFixed(2)}m = ${new Date(etaTimestamp).toLocaleTimeString()}`
                 });
             }
 
