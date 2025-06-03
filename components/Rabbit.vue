@@ -1,9 +1,7 @@
 <template>
   <div class="lane-item" :style="positionStyle">
     <emojione-monotone-rabbit class="icon" />
-    <div class="time-difference-display" :class="[isLatter ? 'float-left' : 'float-right', timeDifferenceClass]">
-      {{ formattedTimeDifference }}
-    </div>
+    <!-- Removed the time difference display - now in Flag component -->
     <!-- New slide countdown display - only show if enabled -->
     <div v-if="showSlideCountdown" class="time-difference-display"
       :class="[isLatter ? 'float-left' : 'float-right', slideCountdownClass]">
@@ -254,79 +252,6 @@ const rabbitTimePosition = computed(() => {
     // Slide-count-based: calculate equivalent time position
     const slideProgressRatio = (props.current - 1) / (total - 1);
     return slideProgressRatio * props.totalTimeMinutes;
-  }
-});
-
-// Calculate time difference like a lap timer - shows difference if current slide takes full planned time
-const timeDifferenceMinutes = computed(() => {
-  // Calculate where rabbit will be after completing the current slide (using full planned time)
-  let rabbitFutureMinutes;
-
-  if (useTimeBasedPositioning.value && props.slideTimes && props.slideTimes.length > 0) {
-    // Time-based: cumulative time up to current slide + full planned time for current slide
-    let cumulativeTime = 0;
-
-    // Add time from completed slides
-    for (let i = 0; i < props.current - 1; i++) {
-      const numberTime = Number(props.slideTimes[i]);
-      cumulativeTime += !isNaN(numberTime) ? numberTime : 0;
-    }
-
-    // Add the FULL planned time for current slide (not elapsed time)
-    const currentSlideTimeMinutes = Number(props.slideTimes[props.current - 1]) || 2;
-    rabbitFutureMinutes = cumulativeTime + currentSlideTimeMinutes;
-  } else {
-    // Slide-count-based: calculate equivalent time position after current slide
-    const slideProgressRatio = props.current / (total - 1);
-    rabbitFutureMinutes = slideProgressRatio * props.totalTimeMinutes;
-  }
-
-  // Calculate where turtle will be when we finish the current slide
-  const currentSlideElapsedMinutes = currentSlideElapsed.value / 60;
-  const currentSlideTimeMinutes = Number(props.slideTimes[props.current - 1]) || 2;
-  const remainingSlideTimeMinutes = Math.max(0, currentSlideTimeMinutes - currentSlideElapsedMinutes);
-
-  // Turtle's current position + time remaining on this slide = where turtle will be when slide is done
-  const turtleCurrentMinutes = props.turtleElapsedTime / 60;
-  const turtleFutureMinutes = turtleCurrentMinutes + remainingSlideTimeMinutes;
-
-  if (props.debugEnabled) {
-    console.log('[Rabbit] Lap timer calculation:', {
-      currentSlide: props.current,
-      rabbitFutureMinutes,
-      turtleCurrentMinutes,
-      currentSlideElapsedMinutes,
-      currentSlideTimeMinutes,
-      remainingSlideTimeMinutes,
-      turtleFutureMinutes,
-      difference: rabbitFutureMinutes - turtleFutureMinutes
-    });
-  }
-
-  return rabbitFutureMinutes - turtleFutureMinutes;
-});
-
-// Format the time difference for display
-const formattedTimeDifference = computed(() => {
-  const diffMinutes = Math.abs(timeDifferenceMinutes.value);
-  const hours = Math.floor(diffMinutes / 60);
-  const minutes = Math.floor(diffMinutes % 60);
-  const seconds = Math.floor((diffMinutes % 1) * 60);
-
-  const sign = timeDifferenceMinutes.value >= 0 ? '+' : '-';
-
-  // Always use hh:mm:ss format
-  return `${sign}${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-});
-
-// CSS class for styling based on time difference
-const timeDifferenceClass = computed(() => {
-  if (timeDifferenceMinutes.value < 0) {
-    return 'time-behind'; // Red when turtle is ahead
-  } else if (timeDifferenceMinutes.value < 1) {
-    return 'time-warning'; // Yellow when close to turtle
-  } else {
-    return 'time-ahead'; // Green when ahead of turtle
   }
 });
 

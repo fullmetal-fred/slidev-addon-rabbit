@@ -17,8 +17,11 @@
           <div v-if="showSlideMarkers" class="slide-tick-marks">
             <!-- Add starting tick at 0% -->
             <div class="slide-tick start-tick" :style="{ left: '0%' }" title="Start"></div>
-            <div v-for="(slidePosition, index) in slideMarkerPositions" :key="index" class="slide-tick"
-              :style="{ left: slidePosition + '%' }" :title="`Slide ${index + 1}`"></div>
+            <!-- Regular slide ticks -->
+            <div v-for="(slidePosition, index) in slideMarkerPositions" :key="index"
+              :class="['slide-tick', { 'final-tick': slidePosition >= 99.5 }]" :style="{ left: slidePosition + '%' }"
+              :title="`Slide ${index + 1}`">
+            </div>
           </div>
           <!-- Time labels between tick marks -->
           <div v-if="showSlideMarkers && showSlideTimeLabels && slideTimes.length > 0" class="slide-time-labels">
@@ -38,8 +41,9 @@
 
       <!-- Finish area -->
       <div class="finish-area">
-        <Flag :slide-times="slideTimes" :total-time-minutes="totalTimeMinutes"
-          :turtle-elapsed-time="turtleElapsedTime" />
+        <Flag :slide-times="slideTimes" :total-time-minutes="totalTimeMinutes" :turtle-elapsed-time="turtleElapsedTime"
+          :current="$slidev.nav.currentPage" :use-slide-times-enabled="useSlideTimesEnabled"
+          :debug-enabled="debugEnabled" />
       </div>
     </div>
   </footer>

@@ -91,6 +91,9 @@
     width: 100%;
     height: 100%;
     pointer-events: none;
+    padding-left: 1px;
+    padding-right: 1px;
+    box-sizing: border-box;
 }
 
 /* Slide time labels container */
@@ -166,6 +169,18 @@
     z-index: 97;
     /* Above labels, below animals */
     transition: background-color 0.2s ease, height 0.2s ease;
+}
+
+/* Special positioning for start tick to prevent clipping */
+.slide-tick.start-tick {
+    transform: translateX(50%);
+    /* Use normal centering like other ticks now that container has padding */
+}
+
+/* Final tick mark - now just a normal tick aligned to right edge */
+.slide-tick.final-tick {
+    transform: translateX(-100%);
+    /* Align to right edge instead of centering */
 }
 
 /* Dark mode overrides for slide ticks */
