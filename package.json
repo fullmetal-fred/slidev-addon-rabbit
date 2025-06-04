@@ -31,7 +31,8 @@
     "@slidev/theme-default": "latest"
   },
   "dependencies": {
-    "@iconify-json/emojione-monotone": "^1.1.4"
+    "@iconify-json/emojione-monotone": "^1.1.4",
+    "@iconify-json/mdi": "^1.2.3"
   },
   "bugs": {
     "url": "https://github.com/kaakaa/slidev-addon-rabbit/issues"

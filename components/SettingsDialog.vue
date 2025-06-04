@@ -4,20 +4,19 @@
         <div class="dialog-content">
             <h3>Presentation Timer Settings</h3>
 
-            <div class="mode-selector">
+            <!-- Presentation Start Time Section -->
+            <div class="time-inputs">
                 <label>
-                    <input type="radio" v-model="timerMode" value="incremental" />
-                    <span>Incremental Mode (starts from 0)</span>
+                    <span>Presentation Start Time:</span>
                 </label>
-                <label>
-                    <input type="radio" v-model="timerMode" value="wallclock" />
-                    <span>Wall Clock Mode (based on real time)</span>
-                </label>
-            </div>
-
-            <div v-if="timerMode === 'wallclock'" class="time-inputs">
-                <p>Set presentation start time:</p>
-                <input type="datetime-local" v-model="startTimeInput" />
+                <div class="start-time-section">
+                    <button @click="setStartTimeNow" class="small-button">Start Now</button>
+                    <span style="margin: 0 8px;">or</span>
+                    <input type="datetime-local" v-model="presentationStartInput" />
+                    <button @click="clearStartTime" class="small-button">Clear</button>
+                </div>
+                <p class="help-text">Set when the presentation should begin. Slide timers will be paused until this
+                    time.</p>
             </div>
 
             <!-- Target Completion Time Section -->
@@ -32,6 +31,16 @@
                 </div>
             </div>
 
+            <!-- Slide Time Management -->
+            <div class="time-inputs">
+                <h4>Slide Time Management</h4>
+                <div class="slide-time-management">
+                    <button @click="clearSlideTimes" class="danger-button">Clear All Slide Times</button>
+                    <button @click="exportSlideTimes" class="export-button">Export Slide Times</button>
+                </div>
+                <p class="help-text">Clear all stored slide timing data or export it for analysis.</p>
+            </div>
+
             <div class="dialog-buttons">
                 <button @click="saveSettings">Save</button>
                 <button @click="resetSettings">Reset</button>
@@ -44,9 +53,9 @@
 
 <script>
 const STORAGE_KEY_PREFIX = 'slidev-turtle-';
-const MODE_KEY = `${STORAGE_KEY_PREFIX}mode`;
-const START_TIME_KEY = `${STORAGE_KEY_PREFIX}start-time`;
 const TARGET_COMPLETION_KEY = `${STORAGE_KEY_PREFIX}target-completion`;
+const PRESENTATION_START_KEY = `${STORAGE_KEY_PREFIX}presentation-start-time`;
+const SLIDE_TIMES_KEY = 'slidev-turtle-slide-times';
 
 export default {
     name: 'SettingsDialog',
@@ -58,14 +67,15 @@ export default {
     },
     emits: ['close', 'settings-updated'],
     data() {
-        const storedMode = localStorage.getItem(MODE_KEY) || 'incremental';
         const storedTargetCompletion = localStorage.getItem(TARGET_COMPLETION_KEY);
+        const storedPresentationStart = localStorage.getItem(PRESENTATION_START_KEY);
 
         return {
-            timerMode: storedMode,
-            startTimeInput: '',
             useTargetCompletion: !!storedTargetCompletion,
-            targetCompletionInput: ''
+            targetCompletionInput: '',
+            // Format date in local timezone
+            presentationStartInput: storedPresentationStart ?
+                this.formatDateForLocalInput(new Date(parseInt(storedPresentationStart))) : ''
         }
     },
     computed: {
@@ -88,18 +98,6 @@ export default {
         },
 
         saveSettings() {
-            // Save the timer mode
-            localStorage.setItem(MODE_KEY, this.timerMode);
-
-            if (this.timerMode === 'incremental') {
-                // For incremental, we use the current time as the start
-                localStorage.setItem(START_TIME_KEY, Date.now().toString());
-            } else if (this.timerMode === 'wallclock') {
-                // For wall clock, save the selected start time
-                const newStartTime = new Date(this.startTimeInput).getTime();
-                localStorage.setItem(START_TIME_KEY, newStartTime.toString());
-            }
-
             // Save target completion settings
             if (this.useTargetCompletion) {
                 const targetCompletion = new Date(this.targetCompletionInput).getTime();
@@ -107,6 +105,12 @@ export default {
             } else {
                 // Remove target completion settings
                 localStorage.removeItem(TARGET_COMPLETION_KEY);
+            }
+
+            // Save presentation start time
+            if (this.presentationStartInput) {
+                const presentationStart = new Date(this.presentationStartInput).getTime();
+                localStorage.setItem(PRESENTATION_START_KEY, presentationStart.toString());
             }
 
             // Signal to parent that settings have changed
@@ -119,35 +123,157 @@ export default {
 
         resetSettings() {
             // Reset everything to defaults
-            localStorage.removeItem(MODE_KEY);
-            localStorage.removeItem(START_TIME_KEY);
             localStorage.removeItem(TARGET_COMPLETION_KEY);
+            localStorage.removeItem(PRESENTATION_START_KEY);
 
-            this.timerMode = 'incremental';
             this.useTargetCompletion = false;
+            this.presentationStartInput = '';
             this.closeDialog();
 
             // Force page reload
             window.location.reload();
         },
 
-        initializeStartTimeInput() {
-            // Set default datetime to current LOCAL time (not UTC)
-            const defaultDate = new Date();
-            // If we have a stored start time and using wall clock mode, use that instead
-            const storedStartTime = localStorage.getItem(START_TIME_KEY);
-            if (storedStartTime && this.timerMode === 'wallclock') {
-                defaultDate.setTime(parseInt(storedStartTime));
+        setStartTimeNow() {
+            const now = Date.now();
+            localStorage.setItem(PRESENTATION_START_KEY, now.toString());
+            this.presentationStartInput = this.formatDateForLocalInput(new Date(now));
+
+            // Notify other components
+            window.dispatchEvent(new StorageEvent('storage', {
+                key: PRESENTATION_START_KEY,
+                newValue: now.toString()
+            }));
+        },
+
+        clearStartTime() {
+            localStorage.removeItem(PRESENTATION_START_KEY);
+            this.presentationStartInput = '';
+
+            // Notify other components
+            window.dispatchEvent(new StorageEvent('storage', {
+                key: PRESENTATION_START_KEY,
+                newValue: null
+            }));
+        },
+
+        clearSlideTimes() {
+            if (confirm('Are you sure you want to clear all slide timing data? This cannot be undone.')) {
+                localStorage.removeItem(SLIDE_TIMES_KEY);
+
+                // Notify other components
+                window.dispatchEvent(new StorageEvent('storage', {
+                    key: SLIDE_TIMES_KEY,
+                    newValue: null
+                }));
+
+                alert('All slide timing data has been cleared.');
+            }
+        },
+
+        exportSlideTimes() {
+            const savedTimes = localStorage.getItem(SLIDE_TIMES_KEY);
+            if (!savedTimes) {
+                alert('No slide timing data available to export.');
+                return;
             }
 
-            // Format date for input: YYYY-MM-DDThh:mm using LOCAL time
-            const year = defaultDate.getFullYear();
-            const month = (defaultDate.getMonth() + 1).toString().padStart(2, '0');
-            const day = defaultDate.getDate().toString().padStart(2, '0');
-            const hours = defaultDate.getHours().toString().padStart(2, '0');
-            const minutes = defaultDate.getMinutes().toString().padStart(2, '0');
+            try {
+                const slideTimes = JSON.parse(savedTimes);
+                const slides = $slidev.nav.slides;
+                const defaultSlideTime = $slidev.configs?.rabbit?.defaultSlideTime || 2;
 
-            this.startTimeInput = `${year}-${month}-${day}T${hours}:${minutes}`;
+                // Format current date and time for filename
+                const now = new Date();
+                const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                const timeStr = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+
+                // Build comprehensive export data
+                const exportData = {
+                    metadata: {
+                        exportDate: now.toISOString(),
+                        totalSlides: slides.length,
+                        slidesWithRecordedTimes: Object.keys(slideTimes).length
+                    },
+                    slideData: [],
+                    summary: {
+                        totalPlannedTime: 0,
+                        totalActualTime: 0,
+                        totalVariance: 0,
+                        slidesAhead: 0,
+                        slidesBehind: 0,
+                        slidesOnTime: 0
+                    }
+                };
+
+                // Process each slide
+                slides.forEach((slide, index) => {
+                    const slideNum = index + 1;
+                    const slideTitle = slide.meta?.slide?.frontmatter?.title || `Slide ${slideNum}`;
+                    const plannedTimeMin = slide.meta?.slide?.frontmatter?.slideTime || defaultSlideTime;
+                    const actualTimeSec = slideTimes[slideNum] || 0;
+                    const actualTimeMin = actualTimeSec / 60;
+                    const variance = plannedTimeMin - actualTimeMin;
+
+                    // Add to summary
+                    exportData.summary.totalPlannedTime += plannedTimeMin;
+                    exportData.summary.totalActualTime += actualTimeMin;
+                    exportData.summary.totalVariance += variance;
+
+                    if (variance > 0.25) exportData.summary.slidesAhead++;
+                    else if (variance < -0.25) exportData.summary.slidesBehind++;
+                    else exportData.summary.slidesOnTime++;
+
+                    // Add slide data
+                    exportData.slideData.push({
+                        slideNumber: slideNum,
+                        title: slideTitle,
+                        plannedTimeMinutes: plannedTimeMin,
+                        actualTimeSeconds: actualTimeSec,
+                        actualTimeMinutes: actualTimeMin,
+                        variance: variance,
+                        status: variance > 0.25 ? 'ahead' : (variance < -0.25 ? 'behind' : 'on-time')
+                    });
+                });
+
+                // Calculate averages
+                if (exportData.slideData.length > 0) {
+                    exportData.summary.averagePlannedTime = exportData.summary.totalPlannedTime / exportData.slideData.length;
+                    exportData.summary.averageActualTime = exportData.summary.totalActualTime / exportData.slideData.length;
+                    exportData.summary.averageVariance = exportData.summary.totalVariance / exportData.slideData.length;
+                }
+
+                // Convert to JSON and create download
+                const jsonStr = JSON.stringify(exportData, null, 2);
+                const blob = new Blob([jsonStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `slide-times-${dateStr}-${timeStr}.json`;
+                document.body.appendChild(a);
+                a.click();
+
+                // Clean up
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }, 0);
+            } catch (e) {
+                console.error('Error exporting slide times:', e);
+                alert('Error exporting slide times. Check console for details.');
+            }
+        },
+
+        formatDateForLocalInput(date) {
+            // Format date for datetime-local input in local timezone
+            const year = date.getFullYear();
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const day = date.getDate().toString().padStart(2, '0');
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
         },
 
         initializeTargetCompletionInput() {
@@ -157,21 +283,11 @@ export default {
             if (storedTargetCompletion) {
                 targetDate.setTime(parseInt(storedTargetCompletion));
             } else {
-                // Default to 1 hour from start time
-                const startTime = this.timerMode === 'wallclock' && localStorage.getItem(START_TIME_KEY)
-                    ? parseInt(localStorage.getItem(START_TIME_KEY))
-                    : Date.now();
-                targetDate.setTime(startTime + (60 * 60 * 1000)); // +1 hour
+                // Default to 1 hour from now
+                targetDate.setTime(Date.now() + (60 * 60 * 1000)); // +1 hour
             }
 
-            // Format for datetime-local input
-            const year = targetDate.getFullYear();
-            const month = (targetDate.getMonth() + 1).toString().padStart(2, '0');
-            const day = targetDate.getDate().toString().padStart(2, '0');
-            const hours = targetDate.getHours().toString().padStart(2, '0');
-            const minutes = targetDate.getMinutes().toString().padStart(2, '0');
-
-            this.targetCompletionInput = `${year}-${month}-${day}T${hours}:${minutes}`;
+            this.targetCompletionInput = this.formatDateForLocalInput(targetDate);
         }
     },
     watch: {
@@ -179,7 +295,6 @@ export default {
         show: {
             handler(newShow) {
                 if (newShow) {
-                    this.initializeStartTimeInput();
                     this.initializeTargetCompletionInput();
                 }
             },
@@ -188,3 +303,101 @@ export default {
     }
 }
 </script>
+
+<style scoped>
+.start-time-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.small-button {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #f8f9fa;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.small-button:hover {
+    background: #e9ecef;
+}
+
+.dark-mode .small-button {
+    background: #374151;
+    border-color: #4b5563;
+    color: #f9fafb;
+}
+
+.dark-mode .small-button:hover {
+    background: #4b5563;
+}
+
+.help-text {
+    font-size: 0.8rem;
+    color: #6b7280;
+    margin-top: 4px;
+    margin-bottom: 0;
+}
+
+.dark-mode .help-text {
+    color: #9ca3af;
+}
+
+.slide-time-management {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.danger-button {
+    background: #ef4444;
+    color: white;
+    border: 1px solid #dc2626;
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.danger-button:hover {
+    background: #dc2626;
+}
+
+.export-button {
+    background: #3b82f6;
+    color: white;
+    border: 1px solid #2563eb;
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.export-button:hover {
+    background: #2563eb;
+}
+
+.dark-mode .danger-button {
+    background: #b91c1c;
+    border-color: #991b1b;
+}
+
+.dark-mode .danger-button:hover {
+    background: #991b1b;
+}
+
+.dark-mode .export-button {
+    background: #3b82f6;
+    border-color: #2563eb;
+}
+
+.dark-mode .export-button:hover {
+    background: #2563eb;
+}
+</style>

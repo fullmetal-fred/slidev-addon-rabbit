@@ -8,6 +8,7 @@
     "export": "slidev export"
   },
   "dependencies": {
+    "@iconify-json/fluent": "^1.2.23",
     "@slidev/theme-seriph": "latest",
     "slidev-addon-rabbit": "file:..",
     "vue": "^3.4.38"
