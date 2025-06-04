@@ -13,10 +13,13 @@
             :completed-slides="completedSlides" :scheduling-delta-minutes="schedulingDeltaMinutes"
             :dynamic-banking-minutes="dynamicBankingMinutes" :time-delta-info="timeDeltaInfo" />
 
+        <BreaksNav v-if="hasBreaks" :presentation-elapsed-minutes="presentationElapsedMinutes"
+            :presentation-has-started="presentationHasStarted" :current-time="currentTime" />
+
         <EstimatedEndTimeNav :estimated-end-time="estimatedEndTime" :banked-time-minutes="bankedTimeMinutes"
             :remaining-time-minutes="remainingTimeMinutes" :target-completion-time="targetCompletionTime"
             :presentation-start-time="presentationStartTime" :current-slide-elapsed="currentSlideElapsed"
-            :current-time="currentTime" />
+            :current-time="currentTime" :remaining-breaks-info="remainingBreaksInfo" />
 
         <TargetCompletionTime :target-completion-time="targetCompletionTime" />
 
@@ -31,6 +34,7 @@ import SlideTimerNav from './SlideTimerNav.vue'
 import BankedTimeNav from './BankedTimeNav.vue'
 import EstimatedEndTimeNav from './EstimatedEndTimeNav.vue'
 import TargetCompletionTime from './TargetCompletionTime.vue'
+import BreaksNav from './BreaksNav.vue'
 
 // Storage keys
 const STORAGE_KEY_PREFIX = 'slidev-turtle-'
@@ -38,6 +42,8 @@ const START_TIME_KEY = `${STORAGE_KEY_PREFIX}start-time`
 const SLIDE_TIMES_KEY = 'slidev-turtle-slide-times'
 const PRESENTATION_START_KEY = 'slidev-turtle-presentation-start-time'
 const TARGET_COMPLETION_KEY = `${STORAGE_KEY_PREFIX}target-completion`
+const BREAKS_KEY = `${STORAGE_KEY_PREFIX}breaks`
+const BREAK_TIMES_KEY = `${STORAGE_KEY_PREFIX}break-times`
 
 // Reactive data
 const currentTime = ref(Date.now())
@@ -45,6 +51,8 @@ const intervalId = ref(null)
 const presentationStartTime = ref(null)
 const targetCompletionTime = ref(null)
 const slideStartTime = ref(Date.now())
+const breaks = ref([])
+const breakTimes = ref({})
 
 // Load data from localStorage
 const loadStoredData = () => {
@@ -59,10 +67,70 @@ const loadStoredData = () => {
     }
 }
 
+// Load breaks from storage
+const loadBreaks = () => {
+    try {
+        const storedBreaks = localStorage.getItem(BREAKS_KEY)
+        breaks.value = storedBreaks ? JSON.parse(storedBreaks) : []
+    } catch (e) {
+        breaks.value = []
+    }
+}
+
+// Load break times from storage
+const loadBreakTimes = () => {
+    try {
+        const storedBreakTimes = localStorage.getItem(BREAK_TIMES_KEY)
+        breakTimes.value = storedBreakTimes ? JSON.parse(storedBreakTimes) : {}
+    } catch (e) {
+        breakTimes.value = {}
+    }
+}
+
 // Check if presentation has started
 const presentationHasStarted = computed(() => {
     if (!presentationStartTime.value) return true // No start time set, consider started
     return currentTime.value >= presentationStartTime.value
+})
+
+// Calculate presentation elapsed time in minutes
+const presentationElapsedMinutes = computed(() => {
+    if (!presentationHasStarted.value || !presentationStartTime.value) {
+        return 0
+    }
+    return (currentTime.value - presentationStartTime.value) / (60 * 1000)
+})
+
+// Check if breaks are configured
+const hasBreaks = computed(() => {
+    if (breaks.value.length === 0) return false
+
+    // Check if there are any upcoming breaks (not completed, not skipped)
+    const now = new Date()
+    const currentTimeMinutes = now.getHours() * 60 + now.getMinutes()
+
+    return breaks.value.some(breakItem => {
+        const breakId = `${breakItem.targetTime}-${breakItem.durationMinutes}-${breakItem.label}`
+        const breakRecord = breakTimes.value[breakId]
+
+        // If break has been completed or skipped, don't count it
+        if (breakRecord && (breakRecord.completed || breakRecord.skipped)) {
+            return false
+        }
+
+        // Check if break time is in the future
+        const [hours, minutes] = (breakItem.targetTime || '00:00').split(':').map(Number)
+        const targetTimeMinutes = hours * 60 + minutes
+
+        return targetTimeMinutes >= currentTimeMinutes
+    })
+})
+
+// Calculate total planned time including breaks
+const totalPlannedTimeWithBreaks = computed(() => {
+    const slidesTime = slideTimes.value.reduce((sum, slideTime) => sum + slideTime, 0)
+    const breaksTime = breaks.value.reduce((sum, breakItem) => sum + (breakItem.durationMinutes || 0), 0)
+    return slidesTime + breaksTime
 })
 
 // Get slide times from configuration
@@ -144,21 +212,19 @@ const saveCurrentSlideTime = () => {
 }
 
 // Banked time calculation: net time advantage/deficit relative to target
-// Bank = (Target - Start - TotalPlannedTime) + SlidePerformanceDelta
+// Bank = (Target - Start - TotalPlannedTime) + SlidePerformanceDelta + BreakPerformanceDelta
 const bankedTimeMinutes = computed(() => {
     let bankedTime = 0
 
-    // 1. Base scheduling delta: (Target - Start - TotalPlannedTime)
+    // 1. Base scheduling delta: (Target - Start - TotalPlannedTimeWithBreaks)
     // This is the fundamental time buffer/deficit built into the schedule
     if (targetCompletionTime.value && presentationStartTime.value) {
-        const totalPlannedMinutes = slideTimes.value.reduce((sum, slideTime) => sum + slideTime, 0)
-        const totalPlannedMs = totalPlannedMinutes * 60 * 1000
+        const totalPlannedMs = totalPlannedTimeWithBreaks.value * 60 * 1000
         const schedulingDeltaMs = targetCompletionTime.value - presentationStartTime.value - totalPlannedMs
         bankedTime += schedulingDeltaMs / (60 * 1000)
     } else if (targetCompletionTime.value && !presentationStartTime.value) {
         // Before presentation starts, calculate theoretical delta from current time
-        const totalPlannedMinutes = slideTimes.value.reduce((sum, slideTime) => sum + slideTime, 0)
-        const totalPlannedMs = totalPlannedMinutes * 60 * 1000
+        const totalPlannedMs = totalPlannedTimeWithBreaks.value * 60 * 1000
         const schedulingDeltaMs = targetCompletionTime.value - Date.now() - totalPlannedMs
         bankedTime += schedulingDeltaMs / (60 * 1000)
     }
@@ -174,7 +240,19 @@ const bankedTimeMinutes = computed(() => {
         }
     }
 
-    // Current slide is NOT included in banking - this shows only completed slides
+    // 3. Break performance delta: For completed breaks, add performance delta (planned - actual)
+    if (presentationHasStarted.value) {
+        Object.values(breakTimes.value).forEach(breakRecord => {
+            if (breakRecord.completed && breakRecord.actualDurationMinutes !== undefined) {
+                const plannedMinutes = breakRecord.durationMinutes
+                const actualMinutes = breakRecord.actualDurationMinutes
+                const delta = plannedMinutes - actualMinutes  // positive = saved time, negative = over time
+                bankedTime += delta
+            }
+        })
+    }
+
+    // Current slide and active breaks are NOT included in banking - this shows only completed items
     // This way you can see: +10 mins banked, -5 mins on current slide = 5 mins ahead overall
 
     return bankedTime
@@ -240,19 +318,42 @@ const estimatedEndTime = computed(() => {
     }
 
     if (presentationHasStarted.value && presentationStartTime.value) {
-        // Presentation has started - calculate: CurrentTime + RemainingTime
-        // This shows when we'll actually finish based on current performance
-        const remainingMs = remainingTimeMinutes.value * 60 * 1000
-        return new Date(currentTime.value + remainingMs)
+        // Presentation has started - calculate: CurrentTime + RemainingSlideTime + RemainingBreakTime
+        const remainingSlideMs = remainingTimeMinutes.value * 60 * 1000
+
+        // Calculate remaining planned break time for breaks that haven't been taken yet
+        const now = new Date()
+        const currentTimeMinutes = now.getHours() * 60 + now.getMinutes()
+
+        const remainingBreakTime = breaks.value.reduce((sum, breakItem) => {
+            const breakId = `${breakItem.targetTime}-${breakItem.durationMinutes}-${breakItem.label}`
+            const breakRecord = breakTimes.value[breakId]
+
+            // If break has been completed or skipped, don't include it
+            if (breakRecord && (breakRecord.completed || breakRecord.skipped)) {
+                return sum
+            }
+
+            // Check if break time is in the future or currently due
+            const [hours, minutes] = (breakItem.targetTime || '00:00').split(':').map(Number)
+            const targetTimeMinutes = hours * 60 + minutes
+
+            if (targetTimeMinutes >= currentTimeMinutes) {
+                return sum + (breakItem.durationMinutes || 0)
+            }
+
+            return sum
+        }, 0)
+
+        const remainingBreakMs = remainingBreakTime * 60 * 1000
+        return new Date(currentTime.value + remainingSlideMs + remainingBreakMs)
     } else if (presentationStartTime.value) {
         // Presentation hasn't started but we have a start time - show theoretical end time
-        const totalPlannedMinutes = slideTimes.value.reduce((sum, slideTime) => sum + slideTime, 0)
-        const totalPlannedMs = totalPlannedMinutes * 60 * 1000
+        const totalPlannedMs = totalPlannedTimeWithBreaks.value * 60 * 1000
         return new Date(presentationStartTime.value + totalPlannedMs)
     } else if (targetCompletionTime.value) {
         // No start time set, but we have a target - show theoretical end based on current time
-        const totalPlannedMinutes = slideTimes.value.reduce((sum, slideTime) => sum + slideTime, 0)
-        const totalPlannedMs = totalPlannedMinutes * 60 * 1000
+        const totalPlannedMs = totalPlannedTimeWithBreaks.value * 60 * 1000
         return new Date(currentTime.value + totalPlannedMs)
     }
 
@@ -290,6 +391,41 @@ const timeDeltaInfo = computed(() => {
         delta: deltaMinutes, // Keep precise delta for calculations
         formattedDelta: formattedDelta
     }
+})
+
+// Add remaining breaks computed property
+
+const remainingBreaksInfo = computed(() => {
+    if (breaks.value.length === 0) {
+        return { count: 0, time: 0 }
+    }
+
+    const now = new Date()
+    const currentTimeMinutes = now.getHours() * 60 + now.getMinutes()
+
+    let count = 0
+    let time = 0
+
+    breaks.value.forEach(breakItem => {
+        const breakId = `${breakItem.targetTime}-${breakItem.durationMinutes}-${breakItem.label}`
+        const breakRecord = breakTimes.value[breakId]
+
+        // If break has been completed or skipped, don't count it
+        if (breakRecord && (breakRecord.completed || breakRecord.skipped)) {
+            return
+        }
+
+        // Check if break time is in the future or currently due
+        const [hours, minutes] = (breakItem.targetTime || '00:00').split(':').map(Number)
+        const targetTimeMinutes = hours * 60 + minutes
+
+        if (targetTimeMinutes >= currentTimeMinutes) {
+            count++
+            time += (breakItem.durationMinutes || 0)
+        }
+    })
+
+    return { count, time }
 })
 
 // Listen for storage changes
@@ -332,6 +468,8 @@ watch(() => $slidev.nav.currentPage, (newPage, oldPage) => {
 onMounted(() => {
     loadStoredData()
     loadSlideElapsedTimes() // Load slide elapsed times for banking calculations
+    loadBreaks() // Load breaks from storage
+    loadBreakTimes() // Load break times from storage
     startSlideTimer() // Initialize slide timer
     window.addEventListener('storage', handleStorageChange)
 

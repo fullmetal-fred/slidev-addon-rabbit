@@ -18,7 +18,7 @@ const TARGET_COMPLETION_KEY = 'slidev-turtle-target-completion'
 // Props from TimerBar
 const props = defineProps({
   estimatedEndTime: {
-    type: Date,
+    type: Object,
     default: null
   },
   bankedTimeMinutes: {
@@ -44,6 +44,10 @@ const props = defineProps({
   currentTime: {
     type: Number,
     required: true
+  },
+  remainingBreaksInfo: {
+    type: Object,
+    default: () => ({ count: 0, time: 0 })
   }
 })
 
@@ -114,22 +118,28 @@ const timeClass = computed(() => {
 
 // Tooltip text
 const tooltipText = computed(() => {
-  const targetTime = targetCompletionTime.value ?
-    new Date(targetCompletionTime.value).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: use12HourFormat
-    }) : 'Not set'
+  if (!estimatedFinishTime.value) {
+    return 'No estimated end time available'
+  }
 
-  const remainingTime = `${props.remainingTimeMinutes.toFixed(1)}min remaining`
-  const bankedText = props.bankedTimeMinutes !== 0 ?
-    ` | ${props.bankedTimeMinutes > 0 ? '+' : ''}${props.bankedTimeMinutes.toFixed(1)}min banked` : ''
+  const remainingSlidesCount = ($slidev.nav.slides?.length || 0) - $slidev.nav.currentPage + 1
 
-  const targetInfo = targetCompletionTime.value ?
-    `Target: ${targetTime}` :
-    'No target set'
+  let tooltip = `Estimated completion: ${formattedEndTime.value}`
 
-  return `Estimated end: ${formattedEndTime.value} | ${targetInfo} | ${remainingTime}${bankedText} | Click to configure`
+  if (remainingSlidesCount > 0) {
+    tooltip += `\n${remainingSlidesCount} slides remaining (${props.remainingTimeMinutes.toFixed(1)} min)`
+  }
+
+  if (props.remainingBreaksInfo.count > 0) {
+    tooltip += `\n${props.remainingBreaksInfo.count} breaks remaining (${props.remainingBreaksInfo.time} min)`
+  }
+
+  if (props.bankedTimeMinutes !== 0) {
+    const bankSign = props.bankedTimeMinutes > 0 ? '+' : ''
+    tooltip += `\nBanking: ${bankSign}${props.bankedTimeMinutes.toFixed(1)} min`
+  }
+
+  return tooltip
 })
 
 // Function to open settings dialog

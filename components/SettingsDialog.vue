@@ -35,10 +35,35 @@
             <div class="time-inputs">
                 <h4>Slide Time Management</h4>
                 <div class="slide-time-management">
-                    <button @click="clearSlideTimes" class="management-button danger-button">Clear All Slide Times</button>
-                    <button @click="exportSlideTimes" class="management-button export-button">Export Slide Times</button>
+                    <button @click="clearSlideTimes" class="management-button danger-button">Clear All Slide
+                        Times</button>
+                    <button @click="exportSlideTimes" class="management-button export-button">Export Slide
+                        Times</button>
                 </div>
                 <p class="help-text">Clear all stored slide timing data or export it for analysis.</p>
+            </div>
+
+            <!-- Breaks Management Section -->
+            <div class="time-inputs">
+                <h4>Breaks Management</h4>
+                <div class="breaks-list">
+                    <div v-for="(breakItem, index) in breaks" :key="index" class="break-item">
+                        <div class="break-fields">
+                            <input type="text" v-model="breakItem.label"
+                                placeholder="Break label (e.g., 'Coffee Break')" class="break-label-input" />
+                            <input type="time" v-model="breakItem.targetTime" placeholder="Break time"
+                                class="break-time-input" />
+                            <input type="number" v-model.number="breakItem.durationMinutes" placeholder="Duration (min)"
+                                class="break-duration-input" min="1" step="1" />
+                            <button @click="removeBreak(index)" class="small-button danger-mini">×</button>
+                        </div>
+                        <p class="break-help">Take "{{ breakItem.label || 'Break' }}" at {{ breakItem.targetTime ||
+                            '00:00' }} for {{ breakItem.durationMinutes || 0 }} minutes</p>
+                    </div>
+                    <button @click="addBreak" class="management-button add-button">Add Break</button>
+                </div>
+                <p class="help-text">Schedule breaks at specific times during your presentation. Breaks are included in
+                    planned time and banking calculations.</p>
             </div>
 
             <!-- Confirmation Dialog -->
@@ -79,6 +104,8 @@ const STORAGE_KEY_PREFIX = 'slidev-turtle-';
 const TARGET_COMPLETION_KEY = `${STORAGE_KEY_PREFIX}target-completion`;
 const PRESENTATION_START_KEY = `${STORAGE_KEY_PREFIX}presentation-start-time`;
 const SLIDE_TIMES_KEY = 'slidev-turtle-slide-times';
+const BREAKS_KEY = `${STORAGE_KEY_PREFIX}breaks`;
+const BREAK_TIMES_KEY = `${STORAGE_KEY_PREFIX}break-times`;
 
 export default {
     name: 'SettingsDialog',
@@ -92,6 +119,7 @@ export default {
     data() {
         const storedTargetCompletion = localStorage.getItem(TARGET_COMPLETION_KEY);
         const storedPresentationStart = localStorage.getItem(PRESENTATION_START_KEY);
+        const storedBreaks = localStorage.getItem(BREAKS_KEY);
 
         return {
             useTargetCompletion: !!storedTargetCompletion,
@@ -99,6 +127,8 @@ export default {
             // Format date in local timezone
             presentationStartInput: storedPresentationStart ?
                 this.formatDateForLocalInput(new Date(parseInt(storedPresentationStart))) : '',
+            // Breaks management
+            breaks: storedBreaks ? JSON.parse(storedBreaks) : [],
             // Confirmation dialog state
             showConfirmDialog: false,
             confirmationTitle: '',
@@ -118,8 +148,6 @@ export default {
             const html = document.documentElement;
 
             return body.classList.contains('dark') ||
-                html.classList.contains('dark') ||
-                body.classList.contains('dark-mode') ||
                 html.classList.contains('dark-mode') ||
                 html.getAttribute('data-theme') === 'dark' ||
                 body.getAttribute('data-theme') === 'dark';
@@ -146,6 +174,9 @@ export default {
                 localStorage.setItem(PRESENTATION_START_KEY, presentationStart.toString());
             }
 
+            // Save breaks
+            localStorage.setItem(BREAKS_KEY, JSON.stringify(this.breaks));
+
             // Signal to parent that settings have changed
             this.$emit('settings-updated');
             this.closeDialog();
@@ -158,9 +189,11 @@ export default {
             // Reset everything to defaults
             localStorage.removeItem(TARGET_COMPLETION_KEY);
             localStorage.removeItem(PRESENTATION_START_KEY);
+            localStorage.removeItem(BREAKS_KEY);
 
             this.useTargetCompletion = false;
             this.presentationStartInput = '';
+            this.breaks = [];
             this.closeDialog();
 
             // Force page reload
@@ -218,15 +251,21 @@ export default {
 
             try {
                 const slideTimes = JSON.parse(savedTimes);
-                
+
+                // Load breaks configuration and timing data
+                const storedBreaks = localStorage.getItem(BREAKS_KEY);
+                const breaks = storedBreaks ? JSON.parse(storedBreaks) : [];
+                const storedBreakTimes = localStorage.getItem(BREAK_TIMES_KEY);
+                const breakTimes = storedBreakTimes ? JSON.parse(storedBreakTimes) : {};
+
                 // Access Slidev data through the component instance
                 const slidevNav = this.$slidev?.nav;
                 const slidevConfigs = this.$slidev?.configs;
-                
+
                 if (!slidevNav || !slidevNav.slides) {
                     throw new Error('Unable to access Slidev navigation data');
                 }
-                
+
                 const slides = slidevNav.slides;
                 const defaultSlideTime = slidevConfigs?.rabbit?.defaultSlideTime || 2;
 
@@ -242,9 +281,12 @@ export default {
                         totalSlides: slides.length,
                         slidesWithRecordedTimes: Object.keys(slideTimes).length,
                         presentationStartTime: localStorage.getItem(PRESENTATION_START_KEY) || null,
-                        targetCompletionTime: localStorage.getItem(TARGET_COMPLETION_KEY) || null
+                        targetCompletionTime: localStorage.getItem(TARGET_COMPLETION_KEY) || null,
+                        breaksConfigured: breaks.length,
+                        breaksTaken: Object.keys(breakTimes).length
                     },
                     slideData: [],
+                    breakData: [],
                     summary: {
                         totalPlannedTime: 0,
                         totalActualTime: 0,
@@ -254,7 +296,10 @@ export default {
                         slidesOnTime: 0,
                         averagePlannedTime: 0,
                         averageActualTime: 0,
-                        averageVariance: 0
+                        averageVariance: 0,
+                        totalPlannedBreakTime: 0,
+                        totalActualBreakTime: 0,
+                        breakVariance: 0
                     }
                 };
 
@@ -277,7 +322,7 @@ export default {
                     let slideEndTime = null;
                     let slideStartTimestamp = null;
                     let slideEndTimestamp = null;
-                    
+
                     if (startTimestamp && actualTimeSec > 0) {
                         slideStartTimestamp = startTimestamp + (cumulativeTime * 1000);
                         slideEndTimestamp = slideStartTimestamp + (actualTimeSec * 1000);
@@ -322,6 +367,58 @@ export default {
                     exportData.summary.averageVariance = exportData.summary.totalVariance / exportData.slideData.length;
                 }
 
+                // Process break data
+                breaks.forEach((breakConfig, index) => {
+                    const breakId = `${breakConfig.targetTime}-${breakConfig.durationMinutes}-${breakConfig.label}`;
+                    const breakTiming = breakTimes[breakId];
+
+                    const plannedDuration = breakConfig.durationMinutes || 0;
+                    const actualDuration = breakTiming?.actualDurationMinutes || 0;
+                    const variance = plannedDuration - actualDuration; // positive = saved time, negative = over time
+
+                    // Calculate break timing details
+                    let breakStartTime = null;
+                    let breakEndTime = null;
+                    let breakStartTimestamp = null;
+                    let breakEndTimestamp = null;
+
+                    if (breakTiming && breakTiming.startTime && breakTiming.endTime) {
+                        breakStartTimestamp = breakTiming.startTime;
+                        breakEndTimestamp = breakTiming.endTime;
+                        breakStartTime = new Date(breakStartTimestamp).toISOString();
+                        breakEndTime = new Date(breakEndTimestamp).toISOString();
+                    }
+
+                    // Add to break data
+                    exportData.breakData.push({
+                        breakNumber: index + 1,
+                        label: breakConfig.label || `Break ${index + 1}`,
+                        targetTime: breakConfig.targetTime || '00:00',
+                        plannedDurationMinutes: plannedDuration,
+                        actualDurationMinutes: actualDuration,
+                        variance: variance,
+                        varianceSeconds: variance * 60,
+                        status: !breakTiming ? 'not-taken' :
+                            (variance > 0.5 ? 'under-time' :
+                                (variance < -0.5 ? 'over-time' : 'on-time')),
+                        breakStartTime: breakStartTime,
+                        breakEndTime: breakEndTime,
+                        breakStartTimestamp: breakStartTimestamp,
+                        breakEndTimestamp: breakEndTimestamp,
+                        wasTaken: !!breakTiming,
+                        completed: breakTiming?.completed || false
+                    });
+
+                    // Add to summary totals
+                    exportData.summary.totalPlannedBreakTime += plannedDuration;
+                    if (breakTiming) {
+                        exportData.summary.totalActualBreakTime += actualDuration;
+                    }
+                });
+
+                // Calculate break variance summary
+                exportData.summary.breakVariance = exportData.summary.totalPlannedBreakTime - exportData.summary.totalActualBreakTime;
+
                 // Convert to JSON and create download
                 const jsonStr = JSON.stringify(exportData, null, 2);
                 const blob = new Blob([jsonStr], { type: 'application/json' });
@@ -349,6 +446,18 @@ export default {
                 console.error('Error exporting slide times:', e);
                 this.showNotificationDialog('Export Error', `Error exporting slide times: ${e.message}`);
             }
+        },
+
+        addBreak() {
+            this.breaks.push({
+                label: '',
+                targetTime: '10:30',
+                durationMinutes: 15
+            });
+        },
+
+        removeBreak(index) {
+            this.breaks.splice(index, 1);
         },
 
         // Confirmation dialog methods
@@ -529,6 +638,121 @@ export default {
 .dark-mode .export-button:hover {
     background: #2563eb;
     box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+}
+
+/* Breaks Management Styles */
+.breaks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.break-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 12px;
+    background: #f9fafb;
+}
+
+.dark-mode .break-item {
+    border-color: #4b5563;
+    background: #374151;
+}
+
+.break-fields {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.break-label-input {
+    flex: 2;
+    padding: 4px 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.break-time-input,
+.break-duration-input {
+    flex: 1;
+    padding: 4px 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+.dark-mode .break-label-input,
+.dark-mode .break-time-input,
+.dark-mode .break-duration-input {
+    background: #2d3748;
+    border-color: #4b5563;
+    color: #f7fafc;
+}
+
+.danger-mini {
+    background: #ef4444;
+    color: white;
+    border: 1px solid #dc2626;
+    border-radius: 4px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.danger-mini:hover {
+    background: #dc2626;
+}
+
+.dark-mode .danger-mini {
+    background: #b91c1c;
+    border-color: #991b1b;
+}
+
+.dark-mode .danger-mini:hover {
+    background: #991b1b;
+}
+
+.break-help {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin: 0;
+    font-style: italic;
+}
+
+.dark-mode .break-help {
+    color: #9ca3af;
+}
+
+.add-button {
+    background: #10b981;
+    color: white;
+    border-color: #059669;
+}
+
+.add-button:hover {
+    background: #059669;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2);
+}
+
+.dark-mode .add-button {
+    background: #10b981;
+    border-color: #059669;
+}
+
+.dark-mode .add-button:hover {
+    background: #059669;
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
 }
 
 /* Confirmation Dialog */
