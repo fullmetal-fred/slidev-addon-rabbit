@@ -21,7 +21,7 @@
 
             <!-- Target Completion Time Section -->
             <div class="time-inputs">
-                <label>
+                <label class="checkbox-label">
                     <input type="checkbox" v-model="useTargetCompletion" />
                     <span>Set target completion time (for time banking)</span>
                 </label>
@@ -35,10 +35,33 @@
             <div class="time-inputs">
                 <h4>Slide Time Management</h4>
                 <div class="slide-time-management">
-                    <button @click="clearSlideTimes" class="danger-button">Clear All Slide Times</button>
-                    <button @click="exportSlideTimes" class="export-button">Export Slide Times</button>
+                    <button @click="clearSlideTimes" class="management-button danger-button">Clear All Slide Times</button>
+                    <button @click="exportSlideTimes" class="management-button export-button">Export Slide Times</button>
                 </div>
                 <p class="help-text">Clear all stored slide timing data or export it for analysis.</p>
+            </div>
+
+            <!-- Confirmation Dialog -->
+            <div v-if="showConfirmDialog" class="confirmation-overlay" @click="cancelConfirmation">
+                <div class="confirmation-dialog" @click.stop>
+                    <h3>{{ confirmationTitle }}</h3>
+                    <p>{{ confirmationMessage }}</p>
+                    <div class="confirmation-buttons">
+                        <button @click="cancelConfirmation" class="cancel-button">Cancel</button>
+                        <button @click="confirmAction" class="confirm-button">{{ confirmationAction }}</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notification Dialog -->
+            <div v-if="showNotification" class="notification-overlay" @click="closeNotification">
+                <div class="notification-dialog" @click.stop>
+                    <h3>{{ notificationTitle }}</h3>
+                    <p>{{ notificationMessage }}</p>
+                    <div class="notification-buttons">
+                        <button @click="closeNotification" class="notification-button">OK</button>
+                    </div>
+                </div>
             </div>
 
             <div class="dialog-buttons">
@@ -75,7 +98,17 @@ export default {
             targetCompletionInput: '',
             // Format date in local timezone
             presentationStartInput: storedPresentationStart ?
-                this.formatDateForLocalInput(new Date(parseInt(storedPresentationStart))) : ''
+                this.formatDateForLocalInput(new Date(parseInt(storedPresentationStart))) : '',
+            // Confirmation dialog state
+            showConfirmDialog: false,
+            confirmationTitle: '',
+            confirmationMessage: '',
+            confirmationAction: '',
+            pendingAction: null,
+            // Notification dialog state
+            showNotification: false,
+            notificationTitle: '',
+            notificationMessage: ''
         }
     },
     computed: {
@@ -158,30 +191,44 @@ export default {
         },
 
         clearSlideTimes() {
-            if (confirm('Are you sure you want to clear all slide timing data? This cannot be undone.')) {
-                localStorage.removeItem(SLIDE_TIMES_KEY);
+            this.showConfirmation(
+                'Clear All Slide Times',
+                'Are you sure you want to clear all slide timing data? This action cannot be undone.',
+                'Clear All',
+                () => {
+                    localStorage.removeItem(SLIDE_TIMES_KEY);
 
-                // Notify other components
-                window.dispatchEvent(new StorageEvent('storage', {
-                    key: SLIDE_TIMES_KEY,
-                    newValue: null
-                }));
+                    // Notify other components
+                    window.dispatchEvent(new StorageEvent('storage', {
+                        key: SLIDE_TIMES_KEY,
+                        newValue: null
+                    }));
 
-                alert('All slide timing data has been cleared.');
-            }
+                    this.showNotificationDialog('Success', 'All slide timing data has been cleared.');
+                }
+            );
         },
 
         exportSlideTimes() {
             const savedTimes = localStorage.getItem(SLIDE_TIMES_KEY);
             if (!savedTimes) {
-                alert('No slide timing data available to export.');
+                this.showNotificationDialog('No Data', 'No slide timing data available to export.');
                 return;
             }
 
             try {
                 const slideTimes = JSON.parse(savedTimes);
-                const slides = $slidev.nav.slides;
-                const defaultSlideTime = $slidev.configs?.rabbit?.defaultSlideTime || 2;
+                
+                // Access Slidev data through the component instance
+                const slidevNav = this.$slidev?.nav;
+                const slidevConfigs = this.$slidev?.configs;
+                
+                if (!slidevNav || !slidevNav.slides) {
+                    throw new Error('Unable to access Slidev navigation data');
+                }
+                
+                const slides = slidevNav.slides;
+                const defaultSlideTime = slidevConfigs?.rabbit?.defaultSlideTime || 2;
 
                 // Format current date and time for filename
                 const now = new Date();
@@ -193,7 +240,9 @@ export default {
                     metadata: {
                         exportDate: now.toISOString(),
                         totalSlides: slides.length,
-                        slidesWithRecordedTimes: Object.keys(slideTimes).length
+                        slidesWithRecordedTimes: Object.keys(slideTimes).length,
+                        presentationStartTime: localStorage.getItem(PRESENTATION_START_KEY) || null,
+                        targetCompletionTime: localStorage.getItem(TARGET_COMPLETION_KEY) || null
                     },
                     slideData: [],
                     summary: {
@@ -202,11 +251,19 @@ export default {
                         totalVariance: 0,
                         slidesAhead: 0,
                         slidesBehind: 0,
-                        slidesOnTime: 0
+                        slidesOnTime: 0,
+                        averagePlannedTime: 0,
+                        averageActualTime: 0,
+                        averageVariance: 0
                     }
                 };
 
+                // Get presentation start time for calculating absolute times
+                const presentationStart = localStorage.getItem(PRESENTATION_START_KEY);
+                const startTimestamp = presentationStart ? parseInt(presentationStart) : null;
+
                 // Process each slide
+                let cumulativeTime = 0; // Track cumulative time through presentation
                 slides.forEach((slide, index) => {
                     const slideNum = index + 1;
                     const slideTitle = slide.meta?.slide?.frontmatter?.title || `Slide ${slideNum}`;
@@ -214,6 +271,22 @@ export default {
                     const actualTimeSec = slideTimes[slideNum] || 0;
                     const actualTimeMin = actualTimeSec / 60;
                     const variance = plannedTimeMin - actualTimeMin;
+
+                    // Calculate start and end times if presentation start time is available
+                    let slideStartTime = null;
+                    let slideEndTime = null;
+                    let slideStartTimestamp = null;
+                    let slideEndTimestamp = null;
+                    
+                    if (startTimestamp && actualTimeSec > 0) {
+                        slideStartTimestamp = startTimestamp + (cumulativeTime * 1000);
+                        slideEndTimestamp = slideStartTimestamp + (actualTimeSec * 1000);
+                        slideStartTime = new Date(slideStartTimestamp).toISOString();
+                        slideEndTime = new Date(slideEndTimestamp).toISOString();
+                    }
+
+                    // Add to cumulative time for next slide
+                    cumulativeTime += actualTimeSec;
 
                     // Add to summary
                     exportData.summary.totalPlannedTime += plannedTimeMin;
@@ -224,7 +297,7 @@ export default {
                     else if (variance < -0.25) exportData.summary.slidesBehind++;
                     else exportData.summary.slidesOnTime++;
 
-                    // Add slide data
+                    // Add comprehensive slide data
                     exportData.slideData.push({
                         slideNumber: slideNum,
                         title: slideTitle,
@@ -232,7 +305,13 @@ export default {
                         actualTimeSeconds: actualTimeSec,
                         actualTimeMinutes: actualTimeMin,
                         variance: variance,
-                        status: variance > 0.25 ? 'ahead' : (variance < -0.25 ? 'behind' : 'on-time')
+                        varianceSeconds: variance * 60,
+                        status: variance > 0.25 ? 'ahead' : (variance < -0.25 ? 'behind' : 'on-time'),
+                        slideStartTime: slideStartTime,
+                        slideEndTime: slideEndTime,
+                        slideStartTimestamp: slideStartTimestamp,
+                        slideEndTimestamp: slideEndTimestamp,
+                        hasRecordedTime: actualTimeSec > 0
                     });
                 });
 
@@ -248,9 +327,14 @@ export default {
                 const blob = new Blob([jsonStr], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
 
+                // Create descriptive filename
+                const slidesCount = exportData.metadata.totalSlides;
+                const recordedCount = exportData.metadata.slidesWithRecordedTimes;
+                const filename = `slidev-timing-report-${slidesCount}slides-${recordedCount}recorded-${dateStr}-${timeStr}.json`;
+
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `slide-times-${dateStr}-${timeStr}.json`;
+                a.download = filename;
                 document.body.appendChild(a);
                 a.click();
 
@@ -259,10 +343,49 @@ export default {
                     document.body.removeChild(a);
                     window.URL.revokeObjectURL(url);
                 }, 0);
+
+                this.showNotificationDialog('Export Complete', `Slide timing data exported successfully as "${filename}".`);
             } catch (e) {
                 console.error('Error exporting slide times:', e);
-                alert('Error exporting slide times. Check console for details.');
+                this.showNotificationDialog('Export Error', `Error exporting slide times: ${e.message}`);
             }
+        },
+
+        // Confirmation dialog methods
+        showConfirmation(title, message, actionText, callback) {
+            this.confirmationTitle = title;
+            this.confirmationMessage = message;
+            this.confirmationAction = actionText;
+            this.pendingAction = callback;
+            this.showConfirmDialog = true;
+        },
+
+        confirmAction() {
+            if (this.pendingAction) {
+                this.pendingAction();
+            }
+            this.cancelConfirmation();
+        },
+
+        cancelConfirmation() {
+            this.showConfirmDialog = false;
+            this.confirmationTitle = '';
+            this.confirmationMessage = '';
+            this.confirmationAction = '';
+            this.pendingAction = null;
+        },
+
+        // Notification dialog methods
+        showNotificationDialog(title, message) {
+            this.notificationTitle = title;
+            this.notificationMessage = message;
+            this.showNotification = true;
+        },
+
+        closeNotification() {
+            this.showNotification = false;
+            this.notificationTitle = '';
+            this.notificationMessage = '';
         },
 
         formatDateForLocalInput(date) {
@@ -353,34 +476,39 @@ export default {
     margin-top: 8px;
 }
 
+.management-button {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    border-radius: 4px;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+    min-width: 120px;
+}
+
 .danger-button {
     background: #ef4444;
     color: white;
-    border: 1px solid #dc2626;
-    padding: 4px 8px;
-    font-size: 0.8rem;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.2s;
+    border-color: #dc2626;
 }
 
 .danger-button:hover {
     background: #dc2626;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
 }
 
 .export-button {
     background: #3b82f6;
     color: white;
-    border: 1px solid #2563eb;
-    padding: 4px 8px;
-    font-size: 0.8rem;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.2s;
+    border-color: #2563eb;
 }
 
 .export-button:hover {
     background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
 }
 
 .dark-mode .danger-button {
@@ -390,6 +518,7 @@ export default {
 
 .dark-mode .danger-button:hover {
     background: #991b1b;
+    box-shadow: 0 2px 4px rgba(153, 27, 27, 0.3);
 }
 
 .dark-mode .export-button {
@@ -399,5 +528,172 @@ export default {
 
 .dark-mode .export-button:hover {
     background: #2563eb;
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+}
+
+/* Confirmation Dialog */
+.confirmation-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 1100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.confirmation-dialog {
+    background: white;
+    border-radius: 8px;
+    padding: 24px;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.confirmation-dialog h3 {
+    margin: 0 0 12px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #ef4444;
+}
+
+.confirmation-dialog p {
+    margin: 0 0 20px 0;
+    color: #374151;
+    line-height: 1.5;
+}
+
+.confirmation-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.cancel-button {
+    padding: 8px 16px;
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.cancel-button:hover {
+    background: #e5e7eb;
+}
+
+.confirm-button {
+    padding: 8px 16px;
+    background: #ef4444;
+    color: white;
+    border: 1px solid #dc2626;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.confirm-button:hover {
+    background: #dc2626;
+}
+
+/* Notification Dialog */
+.notification-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 1100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.notification-dialog {
+    background: white;
+    border-radius: 8px;
+    padding: 24px;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.notification-dialog h3 {
+    margin: 0 0 12px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #059669;
+}
+
+.notification-dialog p {
+    margin: 0 0 20px 0;
+    color: #374151;
+    line-height: 1.5;
+}
+
+.notification-buttons {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.notification-button {
+    padding: 8px 16px;
+    background: #3b82f6;
+    color: white;
+    border: 1px solid #2563eb;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.notification-button:hover {
+    background: #2563eb;
+}
+
+/* Dark mode styles for dialogs */
+.dark-mode .confirmation-dialog,
+.dark-mode .notification-dialog {
+    background: #2d3748;
+    color: #f7fafc;
+}
+
+.dark-mode .confirmation-dialog h3 {
+    color: #fc8181;
+}
+
+.dark-mode .notification-dialog h3 {
+    color: #68d391;
+}
+
+.dark-mode .confirmation-dialog p,
+.dark-mode .notification-dialog p {
+    color: #e2e8f0;
+}
+
+.dark-mode .cancel-button {
+    background: #4a5568;
+    color: #f7fafc;
+    border-color: #718096;
+}
+
+.dark-mode .cancel-button:hover {
+    background: #718096;
+}
+
+.dark-mode .confirm-button {
+    background: #e53e3e;
+    border-color: #c53030;
+}
+
+.dark-mode .confirm-button:hover {
+    background: #c53030;
 }
 </style>

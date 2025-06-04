@@ -525,6 +525,21 @@
     font-size: 14px;
 }
 
+/* Checkbox label styling for settings dialog */
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.checkbox-label input[type="checkbox"] {
+    margin-right: 8px;
+    flex-shrink: 0;
+    width: auto;
+}
+
 .target-completion-section {
     margin-top: 8px;
     padding-left: 20px;
